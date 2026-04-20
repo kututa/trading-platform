@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 
 /* ── Ticker data ── */
 const tickerData = [
@@ -100,7 +100,7 @@ const CandleChart: React.FC<{
 };
 
 /* ── Mobile mini chart (4 candles) ── */
-const MiniChart: React.FC<{ candles: Candle[]; up: boolean }> = ({ candles, up }) => {
+const MiniChart: React.FC<{ candles: Candle[] }> = ({ candles }) => {
   const mini = candles.slice(-8);
   const w = 80; const h = 36;
   const allH = mini.map(c => c.h); const allL = mini.map(c => c.l);
@@ -309,7 +309,7 @@ const IPhone: React.FC = () => (
                   </div>
                 </div>
               </div>
-              <MiniChart candles={a.candles} up={a.up} />
+              <MiniChart candles={a.candles} />
               <div style={ph.assetPrice}>{a.price}</div>
             </div>
           ))}
