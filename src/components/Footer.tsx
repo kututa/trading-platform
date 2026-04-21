@@ -6,7 +6,7 @@ const Footer: React.FC = () => {
       <div className="footer-top">
         <div>
           <div style={styles.logo}>
-            Horizon<span style={styles.logoSpan}> Markets</span>
+            Vantrex<span style={styles.logoSpan}> Markets</span>
           </div>
           <p style={styles.tagline}>Your gateway to professional crypto trading.</p>
         </div>
@@ -36,11 +36,11 @@ const Footer: React.FC = () => {
       </div>
 
       <div style={styles.footerBottom}>
-        <div style={styles.footerCopy}>© 2025 Horizon Markets. All rights reserved.</div>
+        <div style={styles.footerCopy}>© 2025 Vantrex Markets. All rights reserved.</div>
         <div style={styles.footerLegal}>
-          Horizon (SC) Ltd · FSA Seychelles SD016 &nbsp;|&nbsp;
-          Horizon B.V. · CBCS Curaçao 7629LSI &nbsp;|&nbsp;
-          Horizon (VG) Ltd · FSC BVI SIBA/L/20/9266
+          Vantrex  (SC) Ltd · FSA Seychelles SD016 &nbsp;|&nbsp;
+          Vantrex  B.V. · CBCS Curaçao 7629LSI &nbsp;|&nbsp;
+          Vantrex  (VG) Ltd · FSC BVI SIBA/L/20/9266
         </div>
         <div style={styles.riskWarning}>
           Risk Warning: Trading complex derivative products carries a high risk of losing money rapidly due to leverage.

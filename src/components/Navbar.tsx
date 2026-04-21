@@ -14,7 +14,7 @@ const Navbar: React.FC = () => {
       <nav style={styles.nav}>
         {/* Logo */}
         <div style={styles.logo}>
-          Horizon<span style={styles.logoSpan}> Markets</span>
+          Vantrex<span style={styles.logoSpan}> Markets</span>
         </div>
 
         {/* Desktop links */}

@@ -248,7 +248,7 @@ const RegisterForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
       <div style={s.successWrap}>
         <div style={s.successIcon}>✓</div>
         <h2 style={s.successTitle}>Account Created!</h2>
-        <p style={s.successSub}>Welcome to Horizon Markets. You can now sign in.</p>
+        <p style={s.successSub}>Welcome to Vantrex Markets. You can now sign in.</p>
         <button style={s.btnGold} onClick={() => { setSubmitted(false); onSwitch(); }}>
           Sign In Now
         </button>
@@ -524,7 +524,7 @@ const AuthPage: React.FC = () => {
         <DecoBg />
         <div style={s.leftContent}>
           <div style={s.brandLogo}>
-            Horizon<span style={s.brandLogoSpan}> Markets</span>
+            Vantrex<span style={s.brandLogoSpan}> Markets</span>
           </div>
           <div style={s.leftDivider} />
           <h2 style={s.leftHeading}>
@@ -532,7 +532,7 @@ const AuthPage: React.FC = () => {
             <span style={s.leftHeadingGold}>Build Wealth.</span>
           </h2>
           <p style={s.leftSub}>
-            Join 50,000+ traders who trust Horizon Markets for
+            Join 50,000+ traders who trust Vantrex Markets for
             real-time data, low-fee execution, and enterprise-grade security.
           </p>
           {/* Trust badges */}
@@ -579,12 +579,12 @@ const AuthPage: React.FC = () => {
           {mode === 'register' ? (
             <>
               <h1 style={s.formTitle}>Create an Account</h1>
-              <p style={s.formSub}>Start trading crypto with Horizon Markets</p>
+              <p style={s.formSub}>Start trading crypto with Vantrex Markets</p>
             </>
           ) : (
             <>
               <h1 style={s.formTitle}>Welcome Back</h1>
-              <p style={s.formSub}>Sign in to your Horizon Markets account</p>
+              <p style={s.formSub}>Sign in to your Vantrex Markets account</p>
             </>
           )}
         </div>

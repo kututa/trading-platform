@@ -14,7 +14,7 @@ const Features: React.FC = () => {
     <section className="section-wrap">
       <div style={styles.sectionLabelRow}>
         <span style={styles.labelLine} />
-        Why Horizon
+        Why Vantrex
       </div>
       <h2 style={styles.sectionTitle}>
         Built for <strong style={styles.strong}>Serious Traders</strong>

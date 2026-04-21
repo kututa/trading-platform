@@ -147,7 +147,7 @@ const MacBook: React.FC = () => {
               <span style={{ ...mb.dot, background: '#FEBC2E' }} />
               <span style={{ ...mb.dot, background: '#28C840' }} />
             </div>
-            <div style={mb.topTitle}>Horizon Markets — BTC/USDT</div>
+            <div style={mb.topTitle}>Vantrex Markets — BTC/USDT</div>
             <div style={mb.topRight}>
               <span style={mb.badge}>● LIVE</span>
             </div>
@@ -292,7 +292,7 @@ const IPhone: React.FC = () => (
           {/* App header */}
           <div style={ph.appHeader}>
             <span style={ph.appLogo}>H</span>
-            <span style={ph.appTitle}>Horizon</span>
+            <span style={ph.appTitle}>Vantrex</span>
             <span style={ph.appBell}>🔔</span>
           </div>
           {/* Greeting */}
