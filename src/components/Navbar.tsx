@@ -7,6 +7,7 @@ const Navbar: React.FC = () => {
 
   const toggle = () => setMenuOpen(prev => !prev);
   const close  = () => setMenuOpen(false);
+  const goAuth = () => window.__goAuth?.();
 
   return (
     <>
@@ -36,6 +37,7 @@ const Navbar: React.FC = () => {
         <div className="nav-desktop-cta" style={styles.navCta}>
           <button
             style={styles.btnGhost}
+            onClick={goAuth}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
@@ -43,6 +45,7 @@ const Navbar: React.FC = () => {
           </button>
           <button
             style={styles.btnGold}
+            onClick={goAuth}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}
           >
@@ -102,8 +105,24 @@ const Navbar: React.FC = () => {
         <div style={styles.drawerDivider} />
 
         <div style={styles.drawerCta}>
-          <button style={styles.drawerBtnOutline} onClick={close}>Sign In</button>
-          <button style={styles.drawerBtnGold} onClick={close}>Get Started</button>
+          <button
+            style={styles.drawerBtnOutline}
+            onClick={() => {
+              close();
+              goAuth();
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            style={styles.drawerBtnGold}
+            onClick={() => {
+              close();
+              goAuth();
+            }}
+          >
+            Get Started
+          </button>
         </div>
       </div>
 

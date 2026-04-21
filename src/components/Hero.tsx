@@ -515,6 +515,7 @@ const Hero: React.FC = () => {
           </p>
           <div style={styles.heroActions}>
             <button style={styles.btnPrimary}
+              onClick={() => window.__goAuth?.()}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}
             >Open Account</button>
