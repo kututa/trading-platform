@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const NAV_ITEMS = ['Markets', 'Trade', 'Assets', 'Platform', 'About'];
 
@@ -7,7 +8,6 @@ const Navbar: React.FC = () => {
 
   const toggle = () => setMenuOpen(prev => !prev);
   const close  = () => setMenuOpen(false);
-  const goAuth = () => window.__goAuth?.();
 
   return (
     <>
@@ -35,22 +35,24 @@ const Navbar: React.FC = () => {
 
         {/* Desktop CTA */}
         <div className="nav-desktop-cta" style={styles.navCta}>
-          <button
-            style={styles.btnGhost}
-            onClick={goAuth}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
-          >
-            Sign In
-          </button>
-          <button
-            style={styles.btnGold}
-            onClick={goAuth}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}
-          >
-            Get Started
-          </button>
+          <Link to="/login">
+            <button
+              style={styles.btnGhost}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+            >
+              Sign In
+            </button>
+          </Link>
+          <Link to="/register">
+            <button
+              style={styles.btnGold}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}
+            >
+              Get Started
+            </button>
+          </Link>
         </div>
 
         {/* Hamburger button — visible only on mobile via CSS class */}
@@ -105,24 +107,22 @@ const Navbar: React.FC = () => {
         <div style={styles.drawerDivider} />
 
         <div style={styles.drawerCta}>
-          <button
-            style={styles.drawerBtnOutline}
-            onClick={() => {
-              close();
-              goAuth();
-            }}
-          >
-            Sign In
-          </button>
-          <button
-            style={styles.drawerBtnGold}
-            onClick={() => {
-              close();
-              goAuth();
-            }}
-          >
-            Get Started
-          </button>
+          <Link to="/login" style={{ textDecoration: 'none' }}>
+            <button
+              style={styles.drawerBtnOutline}
+              onClick={close}
+            >
+              Sign In
+            </button>
+          </Link>
+          <Link to="/register" style={{ textDecoration: 'none' }}>
+            <button
+              style={styles.drawerBtnGold}
+              onClick={close}
+            >
+              Get Started
+            </button>
+          </Link>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 /* ── Ticker data ── */
 const tickerData = [
@@ -514,11 +515,12 @@ const Hero: React.FC = () => {
             lightning-fast execution, and zero overnight fees on major assets.
           </p>
           <div style={styles.heroActions}>
-            <button style={styles.btnPrimary}
-              onClick={() => window.__goAuth?.()}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}
-            >Open Account</button>
+            <Link to="/register">
+              <button style={styles.btnPrimary}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-light)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--gold)')}
+              >Open Account</button>
+            </Link>
             <button style={styles.btnOutline}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.08)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}

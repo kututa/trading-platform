@@ -1,32 +1,54 @@
-import React, { useEffect, useState } from 'react';
-import Landing  from './pages/Landing';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+
+// Pages
+import Landing from './pages/Landing';
 import AuthPage from './components/Authpage';
+import DashboardLayout from './pages/DashboardLayout';
+import DashboardOverview from './pages/DashboardOverview';
+import Markets from './pages/Markets';
+import Trade from './pages/Trade';
+import Deposit from './pages/Deposit';
+import Withdraw from './pages/Withdraw';
+import Bots from './pages/Bots';
+
 import './styles/global.css';
 
-declare global {
-  interface Window {
-    __goAuth?: () => void;
-    __goHome?: () => void;
-  }
-}
-
-type Page = 'landing' | 'auth';
-
 const App: React.FC = () => {
-  const [page, setPage] = useState<Page>('landing');
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/register" element={<AuthPage />} />
 
-  useEffect(() => {
-    window.__goAuth = () => setPage('auth');
-    window.__goHome = () => setPage('landing');
+          {/* Protected Dashboard Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DashboardOverview />} />
+            <Route path="markets" element={<Markets />} />
+            <Route path="trade" element={<Trade />} />
+            <Route path="deposit" element={<Deposit />} />
+            <Route path="withdraw" element={<Withdraw />} />
+            <Route path="bots" element={<Bots />} />
+          </Route>
 
-    return () => {
-      delete window.__goAuth;
-      delete window.__goHome;
-    };
-  }, []);
-
-  if (page === 'auth') return <AuthPage />;
-  return <Landing />;
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 };
 
 export default App;

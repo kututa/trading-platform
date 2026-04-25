@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CountryList from 'country-list-with-dial-code-and-flag';
+import { useAuth } from '../context/AuthContext';
 
 /* ── Country list from package ── */
 interface Country {
@@ -138,6 +140,8 @@ CountryOptions.displayName = 'CountryOptions';
    REGISTER FORM
 ══════════════════════════════════════════ */
 const RegisterForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '',
     dialCode: DEFAULT_DIAL_CODE, phone: '', password: '', confirm: '',
@@ -146,13 +150,37 @@ const RegisterForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
   const [showCf, setShowCf]   = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const strength = useMemo(() => getStrength(form.password), [form.password]);
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    
+    if (form.password !== form.confirm) {
+      alert('Passwords do not match');
+      return;
+    }
+    
+    if (form.password.length < 8) {
+      alert('Password must be at least 8 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const fullName = `${form.firstName} ${form.lastName}`.trim();
+      await login(form.email, form.password, fullName);
+      setSubmitted(true);
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
+    } catch (error) {
+      alert('Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (submitted) {
@@ -160,15 +188,7 @@ const RegisterForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
       <div style={s.successWrap}>
         <div style={s.successIcon}>✓</div>
         <h2 style={s.successTitle}>Account Created!</h2>
-        <p style={s.successSub}>Welcome to Vantrex  Markets. You can now sign in.</p>
-        <button
-          style={s.btnGold}
-          onClick={() => { setSubmitted(false); onSwitch(); }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#E8D5A3')}
-          onMouseLeave={e => (e.currentTarget.style.background = '#C9A84C')}
-        >
-          Sign In Now
-        </button>
+        <p style={s.successSub}>Welcome to TradeHub. Redirecting to your dashboard...</p>
       </div>
     );
   }
@@ -342,11 +362,12 @@ const RegisterForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
       {/* Submit */}
       <button
         type="submit"
+        disabled={isLoading}
         style={s.btnGold}
-        onMouseEnter={e => (e.currentTarget.style.background = '#E8D5A3')}
-        onMouseLeave={e => (e.currentTarget.style.background = '#C9A84C')}
+        onMouseEnter={e => !isLoading && (e.currentTarget.style.background = '#E8D5A3')}
+        onMouseLeave={e => !isLoading && (e.currentTarget.style.background = '#C9A84C')}
       >
-        Create Account
+        {isLoading ? 'Creating Account...' : 'Create Account'}
       </button>
 
       {/* Switch */}
@@ -364,20 +385,62 @@ const RegisterForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
    LOGIN FORM
 ══════════════════════════════════════════ */
 const LoginForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [focused, setFocused]   = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 2000);
+    setErrorMsg('');
+    
+    if (!email || !password) {
+      setErrorMsg('Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Extract name from email for display purposes
+      const nameFromEmail = email.split('@')[0].replace(/[._-]/g, ' ').trim();
+      const capitalizedName = nameFromEmail
+        .split(' ')
+        .map(n => n.charAt(0).toUpperCase() + n.slice(1))
+        .join(' ');
+      
+      await login(email, password, capitalizedName);
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
+    } catch (error) {
+      setErrorMsg('Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} style={s.form} noValidate>
+
+      {/* Error Message */}
+      {errorMsg && (
+        <div style={{
+          padding: '12px 16px',
+          marginBottom: '20px',
+          background: 'rgba(255, 90, 90, 0.1)',
+          border: '1px solid #FF5A5A',
+          borderRadius: '8px',
+          color: '#FF5A5A',
+          fontSize: '14px',
+          textAlign: 'center' as const,
+        }}>
+          {errorMsg}
+        </div>
+      )}
 
       {/* Email */}
       <div style={s.fieldWrap}>
@@ -428,11 +491,12 @@ const LoginForm: React.FC<{ onSwitch: () => void }> = ({ onSwitch }) => {
       {/* Submit */}
       <button
         type="submit"
-        style={{ ...s.btnGold, marginTop: '8px' }}
-        onMouseEnter={e => (e.currentTarget.style.background = '#E8D5A3')}
-        onMouseLeave={e => (e.currentTarget.style.background = '#C9A84C')}
+        disabled={isLoading}
+        style={{ ...s.btnGold, marginTop: '8px', opacity: isLoading ? 0.7 : 1 }}
+        onMouseEnter={e => !isLoading && (e.currentTarget.style.background = '#E8D5A3')}
+        onMouseLeave={e => !isLoading && (e.currentTarget.style.background = '#C9A84C')}
       >
-        {submitted ? '✓ Welcome Back' : 'Sign In'}
+        {isLoading ? 'Signing In...' : 'Sign In'}
       </button>
 
       {/* Divider */}
