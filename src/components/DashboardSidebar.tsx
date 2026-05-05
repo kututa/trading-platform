@@ -33,7 +33,6 @@ const DashboardSidebar: React.FC<Props> = ({ route, onNavigate, onLogout, isOpen
             position: 'fixed', inset: 0,
             background: 'rgba(0,0,0,0.7)',
             zIndex: 299,
-            display: 'none',
           }}
           className="sidebar-overlay"
         />

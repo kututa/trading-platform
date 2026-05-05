@@ -1,326 +1,656 @@
-import React, { useState, useMemo } from 'react';
-import { CRYPTO_OPTIONS } from '../mockData';
+import React, { useState } from 'react';
 
-const FEE_RATES: Record<string, { pct: number; fixed: number }> = {
-  USDT: { pct: 0.001, fixed: 1.0  },
-  BTC:  { pct: 0.001, fixed: 0.00002 },
-  ETH:  { pct: 0.001, fixed: 0.003 },
-  BNB:  { pct: 0.001, fixed: 0.001 },
-  SOL:  { pct: 0.001, fixed: 0.01  },
-  XRP:  { pct: 0.001, fixed: 0.1   },
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface NetworkOption {
+  id: string;
+  label: string;
+  fee: number;
+  feeLabel: string;
+  placeholder: string;
+}
+
+interface CryptoOption {
+  sym: string;
+  name: string;
+  icon: string;
+  color: string;
+  networks: NetworkOption[];
+  minWithdraw: number;
+}
+
+interface WithdrawalRecord {
+  id: string;
+  sym: string;
+  network: string;
+  amount: number;
+  fee: number;
+  address: string;
+  status: 'pending' | 'completed' | 'failed';
+  date: string;
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const CRYPTO_OPTIONS: CryptoOption[] = [
+  {
+    sym: 'USDT', name: 'Tether', icon: '₮', color: '#26A17B',
+    minWithdraw: 10,
+    networks: [
+      { id: 'trc20', label: 'Tron (TRC20)',     fee: 1,    feeLabel: '$1',    placeholder: 'Enter USDT address' },
+      { id: 'erc20', label: 'Ethereum (ERC20)', fee: 5,    feeLabel: '$5',    placeholder: 'Enter USDT address' },
+      { id: 'bep20', label: 'BNB Chain (BEP20)',fee: 0.5,  feeLabel: '$0.50', placeholder: 'Enter USDT address' },
+    ],
+  },
+  {
+    sym: 'BTC', name: 'Bitcoin', icon: '₿', color: '#F7931A',
+    minWithdraw: 20,
+    networks: [
+      { id: 'btc', label: 'Bitcoin Network', fee: 2, feeLabel: '$2', placeholder: 'Enter BTC address' },
+    ],
+  },
+  {
+    sym: 'ETH', name: 'Ethereum', icon: 'Ξ', color: '#627EEA',
+    minWithdraw: 15,
+    networks: [
+      { id: 'erc20', label: 'Ethereum (ERC20)', fee: 3,   feeLabel: '$3',   placeholder: 'Enter ETH address' },
+      { id: 'arb',   label: 'Arbitrum',         fee: 0.5, feeLabel: '$0.50',placeholder: 'Enter ETH address' },
+    ],
+  },
+  {
+    sym: 'BNB', name: 'BNB', icon: '◈', color: '#F3BA2F',
+    minWithdraw: 10,
+    networks: [
+      { id: 'bep20', label: 'BNB Chain (BEP20)', fee: 0.5, feeLabel: '$0.50', placeholder: 'Enter BNB address' },
+    ],
+  },
+  {
+    sym: 'SOL', name: 'Solana', icon: '◎', color: '#9945FF',
+    minWithdraw: 10,
+    networks: [
+      { id: 'sol', label: 'Solana Network', fee: 0.1, feeLabel: '$0.10', placeholder: 'Enter SOL address' },
+    ],
+  },
+  {
+    sym: 'XRP', name: 'Ripple', icon: '✕', color: '#00AAE4',
+    minWithdraw: 10,
+    networks: [
+      { id: 'xrp', label: 'XRP Ledger', fee: 0.2, feeLabel: '$0.20', placeholder: 'Enter XRP address' },
+    ],
+  },
+];
+
+// ── Status badge ──────────────────────────────────────────────────────────────
+const StatusBadge: React.FC<{ status: WithdrawalRecord['status'] }> = ({ status }) => {
+  const map = {
+    pending:   { color: '#FFB800', bg: 'rgba(255,184,0,0.1)',   label: 'Pending'   },
+    completed: { color: '#00FF88', bg: 'rgba(0,255,136,0.1)',   label: 'Completed' },
+    failed:    { color: '#FF4444', bg: 'rgba(255,68,68,0.1)',   label: 'Failed'    },
+  };
+  const { color, bg, label } = map[status];
+  return (
+    <span style={{ fontSize: '11px', fontWeight: 600, color, background: bg, padding: '3px 10px', borderRadius: '20px' }}>
+      {label}
+    </span>
+  );
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+//  WITHDRAW PAGE
+// ════════════════════════════════════════════════════════════════════════════
 const Withdraw: React.FC = () => {
-  const [coin,     setCoin]     = useState(CRYPTO_OPTIONS[0]);
-  const [address,  setAddress]  = useState('');
-  const [amount,   setAmount]   = useState('');
-  const [addrErr,  setAddrErr]  = useState('');
-  const [amtErr,   setAmtErr]   = useState('');
-  const [confirmed, setConfirmed] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [selectedCrypto,  setSelectedCrypto]  = useState<CryptoOption | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<NetworkOption | null>(null);
+  const [address,         setAddress]         = useState('');
+  const [amount,          setAmount]          = useState('');
+  const [addressErr,      setAddressErr]      = useState('');
+  const [amountErr,       setAmountErr]       = useState('');
+  const [history,         setHistory]         = useState<WithdrawalRecord[]>([]);
+  const [submitted,       setSubmitted]       = useState(false);
 
-  const fee = useMemo(() => {
-    const amt = parseFloat(amount) || 0;
-    const r = FEE_RATES[coin.sym] ?? { pct: 0.001, fixed: 1 };
-    return parseFloat((amt * r.pct + r.fixed).toFixed(6));
-  }, [amount, coin.sym]);
+  const availableBalance = 0.0;
 
-  const receive = useMemo(() => {
-    const amt = parseFloat(amount) || 0;
-    return Math.max(amt - fee, 0).toFixed(6);
-  }, [amount, fee]);
+  // Computed values
+  const fee      = selectedNetwork?.fee ?? 0;
+  const amtNum   = parseFloat(amount) || 0;
+  const receive  = Math.max(amtNum - fee, 0);
+  const minWith  = selectedCrypto?.minWithdraw ?? 10;
 
-  const validate = () => {
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleCryptoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const found = CRYPTO_OPTIONS.find(c => c.sym === e.target.value) ?? null;
+    setSelectedCrypto(found);
+    setSelectedNetwork(null);
+    setAddress('');
+    setAmount('');
+    setAddressErr('');
+    setAmountErr('');
+  };
+
+  const handleNetworkChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const found = selectedCrypto?.networks.find(n => n.id === e.target.value) ?? null;
+    setSelectedNetwork(found);
+    setAddress('');
+    setAmount('');
+    setAddressErr('');
+    setAmountErr('');
+  };
+
+  const validate = (): boolean => {
     let valid = true;
     if (!address.trim() || address.length < 10) {
-      setAddrErr('Please enter a valid wallet address.'); valid = false;
-    } else { setAddrErr(''); }
-    const amt = parseFloat(amount);
-    if (!amount || isNaN(amt) || amt <= 0) {
-      setAmtErr('Please enter a valid amount.'); valid = false;
-    } else if (amt < fee * 2) {
-      setAmtErr(`Minimum withdrawal is ${(fee * 2).toFixed(4)} ${coin.sym}.`); valid = false;
-    } else { setAmtErr(''); }
+      setAddressErr('Please enter a valid wallet address.');
+      valid = false;
+    } else {
+      setAddressErr('');
+    }
+    if (!amount || amtNum <= 0) {
+      setAmountErr('Please enter an amount.');
+      valid = false;
+    } else if (amtNum < minWith) {
+      setAmountErr(`Minimum withdrawal is $${minWith}.`);
+      valid = false;
+    } else if (amtNum > availableBalance) {
+      setAmountErr('Insufficient balance.');
+      valid = false;
+    } else {
+      setAmountErr('');
+    }
     return valid;
   };
 
-  const handleConfirm = () => {
-    if (validate()) setConfirmed(true);
-  };
-
   const handleSubmit = () => {
+    if (!selectedCrypto || !selectedNetwork) return;
+    if (!validate()) return;
+
+    const record: WithdrawalRecord = {
+      id: Date.now().toString(),
+      sym: selectedCrypto.sym,
+      network: selectedNetwork.label,
+      amount: amtNum,
+      fee,
+      address,
+      status: 'pending',
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    };
+    setHistory(prev => [record, ...prev]);
     setSubmitted(true);
+    setTimeout(() => {
+      setSubmitted(false);
+      setAddress('');
+      setAmount('');
+      setSelectedNetwork(null);
+      setSelectedCrypto(null);
+    }, 2500);
   };
 
-  if (submitted) {
-    return (
-      <div style={w.successWrap}>
-        <div style={w.successIcon}>✓</div>
-        <div style={w.successTitle}>Withdrawal Submitted</div>
-        <div style={w.successSub}>
-          Your withdrawal of <strong style={{ color: '#E2E8F0' }}>{amount} {coin.sym}</strong> to{' '}
-          <span style={{ fontFamily: 'monospace', color: '#7A9AAA' }}>{address.slice(0, 12)}...</span>{' '}
-          has been submitted and is pending confirmation.
-        </div>
-        <button style={w.btnGreen}
-          onClick={() => { setSubmitted(false); setConfirmed(false); setAmount(''); setAddress(''); }}
-        >New Withdrawal</button>
-      </div>
-    );
-  }
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={w.page}>
+    <div style={s.wrapper}>
 
-      {/* LEFT — withdraw form */}
-      <div style={w.formCard}>
-        <div style={w.cardTitle}>Withdraw Funds</div>
-        <div style={w.balanceBanner}>
-          <span style={w.bannerLabel}>Available Balance</span>
-          <span style={w.bannerVal}>$0.00 <span style={{ color: '#3A5A6A', fontWeight: 400 }}>≈ 0.00 {coin.sym}</span></span>
+      {/* ── Page title ── */}
+      <div style={s.pageTitle}>
+        <div style={s.pageTitleIcon}>↙</div>
+        <div>
+          <div style={s.pageTitleText}>Withdraw Crypto</div>
+          <div style={s.pageTitleSub}>Withdraw your cryptocurrency to an external wallet</div>
         </div>
-
-        {/* Coin selector */}
-        <div style={w.fieldGroup}>
-          <label style={w.label}>Select Cryptocurrency</label>
-          <div style={w.coinTabs}>
-            {CRYPTO_OPTIONS.map(c => (
-              <button key={c.sym}
-                style={{ ...w.coinTab, ...(coin.sym === c.sym ? w.coinTabActive : {}) }}
-                onClick={() => { setCoin(c); setConfirmed(false); }}
-              >
-                {c.sym}
-              </button>
-            ))}
-          </div>
-          <div style={w.networkPill}>Network: <strong style={{ color: '#E2E8F0' }}>{coin.network}</strong></div>
-        </div>
-
-        {/* Address */}
-        <div style={w.fieldGroup}>
-          <label style={w.label}>Withdrawal Address</label>
-          <input
-            style={{ ...w.input, ...(addrErr ? { borderColor: '#FF4444' } : {}) }}
-            placeholder={`Enter ${coin.sym} ${coin.network} address`}
-            value={address}
-            onChange={e => { setAddress(e.target.value); setAddrErr(''); setConfirmed(false); }}
-          />
-          {addrErr && <span style={w.errMsg}>{addrErr}</span>}
-        </div>
-
-        {/* Amount */}
-        <div style={w.fieldGroup}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label style={w.label}>Amount ({coin.sym})</label>
-            <button style={w.maxBtn} onClick={() => setAmount('0')}>MAX</button>
-          </div>
-          <div style={w.inputWrap}>
-            <input
-              style={{ ...w.inputInner, ...(amtErr ? { outline: '1px solid #FF4444' } : {}) }}
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => { setAmount(e.target.value); setAmtErr(''); setConfirmed(false); }}
-            />
-            <span style={w.suffix}>{coin.sym}</span>
-          </div>
-          {amtErr && <span style={w.errMsg}>{amtErr}</span>}
-        </div>
-
-        {/* Quick amounts */}
-        <div style={w.quickAmts}>
-          {['10', '50', '100', '500'].map(a => (
-            <button key={a} style={w.quickBtn}
-              onClick={() => { setAmount(a); setAmtErr(''); setConfirmed(false); }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#00FF88')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#1A2332')}
-            >{a}</button>
-          ))}
-        </div>
-
-        {/* Fee breakdown */}
-        <div style={w.feeCard}>
-          <div style={w.feeTitle}>Fee Breakdown</div>
-          <div style={w.feeRow}>
-            <span style={w.feeLabel}>Network Fee</span>
-            <span style={w.feeVal}>{fee} {coin.sym}</span>
-          </div>
-          <div style={w.feeRow}>
-            <span style={w.feeLabel}>Processing Fee</span>
-            <span style={w.feeVal}>0.00 {coin.sym}</span>
-          </div>
-          <div style={{ ...w.feeRow, borderTop: '1px solid #1A2332', paddingTop: '10px', marginTop: '4px' }}>
-            <span style={{ ...w.feeLabel, color: '#E2E8F0', fontWeight: 600 }}>You Receive</span>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: '#00FF88' }}>
-              {receive} {coin.sym}
-            </span>
-          </div>
-        </div>
-
-        {/* Confirm toggle */}
-        {!confirmed ? (
-          <button style={w.btnGreen} onClick={handleConfirm}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >Review Withdrawal →</button>
-        ) : (
-          <div style={w.confirmBox}>
-            <div style={w.confirmTitle}>⚠ Confirm Withdrawal</div>
-            <div style={w.confirmDetail}>
-              <div style={w.cdRow}><span style={w.cdLabel}>Amount</span><span style={w.cdVal}>{amount} {coin.sym}</span></div>
-              <div style={w.cdRow}><span style={w.cdLabel}>To Address</span><span style={{ ...w.cdVal, fontFamily: 'monospace', fontSize: '11px' }}>{address.slice(0, 18)}...</span></div>
-              <div style={w.cdRow}><span style={w.cdLabel}>Network</span><span style={w.cdVal}>{coin.network}</span></div>
-              <div style={w.cdRow}><span style={w.cdLabel}>You Receive</span><span style={{ ...w.cdVal, color: '#00FF88' }}>{receive} {coin.sym}</span></div>
-            </div>
-            <div style={w.confirmWarning}>
-              This action cannot be undone. Ensure the address is correct before confirming.
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button style={w.btnBack} onClick={() => setConfirmed(false)}>← Edit</button>
-              <button style={{ ...w.btnGreen, flex: 1 }} onClick={handleSubmit}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-              >Confirm Withdrawal</button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* RIGHT — info panel */}
-      <div style={w.infoCol}>
-        {/* Important notice */}
-        <div style={w.infoCard}>
-          <div style={w.infoCardTitle}>📋 Withdrawal Guide</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-            {[
-              { icon: '🔒', text: 'Double-check the wallet address before submitting. Incorrect addresses result in permanent loss.' },
-              { icon: '⏱', text: 'Processing times vary by network: BTC (30–60 min), ETH (5–10 min), USDT TRC-20 (1–3 min).' },
-              { icon: '📉', text: 'Network fees fluctuate based on blockchain congestion and are deducted from your withdrawal.' },
-              { icon: '✅', text: 'Withdrawals are reviewed for security. Large amounts may require additional verification.' },
-            ].map((item, i) => (
-              <div key={i} style={w.guideItem}>
-                <span style={w.guideIcon}>{item.icon}</span>
-                <span style={w.guideText}>{item.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ── Two-column layout ── */}
+      <div style={s.layout}>
 
-        {/* Network status */}
-        <div style={w.infoCard}>
-          <div style={w.infoCardTitle}>🌐 Network Status</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-            {CRYPTO_OPTIONS.map(c => (
-              <div key={c.sym} style={w.netRow}>
-                <div>
-                  <div style={w.netSym}>{c.sym}</div>
-                  <div style={w.netName}>{c.network}</div>
+        {/* LEFT — New Withdrawal */}
+        <div style={s.card}>
+          <div style={s.cardHeader}>
+            <span style={s.cardHeaderIcon}>▣</span>
+            <span style={s.cardHeaderTitle}>New Withdrawal</span>
+          </div>
+
+          {/* Balance row */}
+          <div style={s.balanceRow}>
+            <span style={s.balanceLabel}>Available Balance</span>
+            <span style={s.balanceVal}>${availableBalance.toFixed(2)}</span>
+          </div>
+
+          <div style={s.divider} />
+
+          {/* Select Currency */}
+          <div style={s.fieldGroup}>
+            <label style={s.label}>Select Currency</label>
+            <div style={s.selectWrap}>
+              {selectedCrypto && (
+                <div style={{ ...s.cryptoIcon, background: selectedCrypto.color }}>
+                  {selectedCrypto.icon}
                 </div>
-                <div style={{ ...w.netStatus, color: '#00FF88' }}>● Operational</div>
-              </div>
-            ))}
+              )}
+              {selectedCrypto && (
+                <span style={s.cryptoSymLabel}>{selectedCrypto.sym}</span>
+              )}
+              {selectedCrypto && (
+                <span style={s.cryptoNameLabel}>{selectedCrypto.name}</span>
+              )}
+              <select
+                style={{
+                  ...s.select,
+                  paddingLeft: selectedCrypto ? '120px' : '14px',
+                  color: selectedCrypto ? 'transparent' : '#5A7A8A',
+                }}
+                value={selectedCrypto?.sym ?? ''}
+                onChange={handleCryptoChange}
+              >
+                <option value="" disabled>Select a cryptocurrency</option>
+                {CRYPTO_OPTIONS.map(c => (
+                  <option key={c.sym} value={c.sym}>{c.sym} — {c.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* Select Network (appears after crypto selected) */}
+          {selectedCrypto && (
+            <div style={s.fieldGroup}>
+              <label style={s.label}>Select Network</label>
+              <div style={s.selectWrap}>
+                {selectedNetwork && (
+                  <span style={s.networkIcon}>▷</span>
+                )}
+                {selectedNetwork && (
+                  <span style={s.networkLabel}>{selectedNetwork.label}</span>
+                )}
+                {selectedNetwork && (
+                  <span style={s.networkFee}>Fee: {selectedNetwork.feeLabel}</span>
+                )}
+                <select
+                  style={{
+                    ...s.select,
+                    paddingLeft: selectedNetwork ? '200px' : '14px',
+                    color: selectedNetwork ? 'transparent' : '#5A7A8A',
+                    borderColor: selectedNetwork ? 'rgba(0,255,136,0.35)' : '#1A2332',
+                  }}
+                  value={selectedNetwork?.id ?? ''}
+                  onChange={handleNetworkChange}
+                >
+                  <option value="" disabled>Select a network</option>
+                  {selectedCrypto.networks.map(n => (
+                    <option key={n.id} value={n.id}>{n.label}  —  Fee: {n.feeLabel}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Address + Amount (appear after network selected) */}
+          {selectedNetwork && (
+            <>
+              {/* Withdrawal Address */}
+              <div style={s.fieldGroup}>
+                <label style={s.label}>Withdrawal Address</label>
+                <input
+                  style={{ ...s.input, ...(addressErr ? { borderColor: '#FF4444' } : {}) }}
+                  placeholder={selectedNetwork.placeholder}
+                  value={address}
+                  onChange={e => { setAddress(e.target.value); setAddressErr(''); }}
+                />
+                {addressErr && <span style={s.errMsg}>{addressErr}</span>}
+              </div>
+
+              {/* Amount */}
+              <div style={s.fieldGroup}>
+                <label style={s.label}>Amount (USD)</label>
+                <div style={s.amountWrap}>
+                  <span style={s.amountDollar}>$</span>
+                  <input
+                    style={{ ...s.amountInput, ...(amountErr ? { outline: '1px solid #FF4444' } : {}) }}
+                    type="number"
+                    placeholder="100.00"
+                    value={amount}
+                    min={minWith}
+                    onChange={e => { setAmount(e.target.value); setAmountErr(''); }}
+                  />
+                </div>
+                <span style={s.minNote}>Minimum withdrawal: ${minWith}</span>
+                {amountErr && <span style={s.errMsg}>{amountErr}</span>}
+              </div>
+
+              {/* Fee summary */}
+              <div style={s.feeSummary}>
+                <div style={s.feeRow}>
+                  <span style={s.feeLabel}>Network Fee</span>
+                  <span style={s.feeVal}>${fee.toFixed(2)}</span>
+                </div>
+                <div style={{ ...s.feeRow, marginTop: '6px' }}>
+                  <span style={{ ...s.feeLabel, fontWeight: 700, color: '#E2E8F0' }}>You will receive</span>
+                  <span style={{ ...s.feeVal, color: '#00FF88', fontWeight: 700, fontSize: '15px' }}>
+                    ${receive.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <button
+                style={{
+                  ...s.btnSubmit,
+                  background: submitted ? '#00CC6A' : '#00FF88',
+                  opacity: submitted ? 0.9 : 1,
+                }}
+                onClick={handleSubmit}
+                onMouseEnter={e => { if (!submitted) e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+              >
+                {submitted ? '✓ Withdrawal Submitted' : 'Submit Withdrawal'}
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* RIGHT — Withdrawal History */}
+        <div style={s.card}>
+          <div style={s.cardHeader}>
+            <span style={s.cardHeaderIcon}>⏱</span>
+            <span style={s.cardHeaderTitle}>Withdrawal History</span>
+          </div>
+
+          {history.length === 0 ? (
+            <div style={s.emptyState}>
+              <div style={s.emptyIcon}>↙</div>
+              <div style={s.emptyText}>No withdrawal history</div>
+            </div>
+          ) : (
+            <div style={s.historyList}>
+              {history.map(item => (
+                <div key={item.id} style={s.historyItem}>
+                  <div style={s.historyTop}>
+                    <div style={s.historyLeft}>
+                      <div style={s.historyAmount}>${item.amount.toFixed(2)}</div>
+                      <div style={s.historyMeta}>{item.sym} · {item.network}</div>
+                    </div>
+                    <StatusBadge status={item.status} />
+                  </div>
+                  <div style={s.historyBottom}>
+                    <span style={s.historyAddr}>
+                      {item.address.slice(0, 10)}...{item.address.slice(-6)}
+                    </span>
+                    <span style={s.historyDate}>{item.date}</span>
+                  </div>
+                  <div style={s.historyFeeRow}>
+                    <span style={s.historyFeeLabel}>Fee: ${item.fee.toFixed(2)}</span>
+                    <span style={{ ...s.historyFeeLabel, color: '#00FF88' }}>
+                      Received: ${Math.max(item.amount - item.fee, 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Responsive */}
       <style>{`
-        @media (max-width: 860px) {
-          .withdraw-page { grid-template-columns: 1fr !important; }
+        @media (max-width: 768px) {
+          .withdraw-layout { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
   );
 };
 
-const w: Record<string, React.CSSProperties> = {
-  page:       { display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px', alignItems: 'start' },
-  formCard:   { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' },
-  cardTitle:  { fontSize: '16px', fontWeight: 700, color: '#E2E8F0' },
-  balanceBanner: { background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: '12px', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  bannerLabel: { fontSize: '11px', color: '#3A5A6A', letterSpacing: '0.1em', textTransform: 'uppercase' as const },
-  bannerVal:   { fontSize: '18px', fontWeight: 700, color: '#00FF88' },
-
-  fieldGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  label:      { fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: '#2A4A5A' },
-
-  coinTabs:    { display: 'flex', flexWrap: 'wrap' as const, gap: '6px' },
-  coinTab: {
-    fontFamily: "'Jost',sans-serif", fontSize: '12px', fontWeight: 600,
-    color: '#5A7A8A', background: '#111827',
-    border: '1px solid #1A2332', borderRadius: '8px',
-    padding: '7px 14px', cursor: 'pointer', transition: 'all 0.15s',
+// ── Styles ─────────────────────────────────────────────────────────────────────
+const s: Record<string, React.CSSProperties> = {
+  wrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    fontFamily: "'Jost', sans-serif",
+    maxWidth: '900px',
+    width: '100%',
   },
-  coinTabActive: { color: '#00FF88', borderColor: 'rgba(0,255,136,0.4)', background: 'rgba(0,255,136,0.06)' },
-  networkPill:   { fontSize: '11px', color: '#5A7A8A', background: '#111827', border: '1px solid #1A2332', borderRadius: '8px', padding: '6px 12px', alignSelf: 'flex-start' },
 
-  input: {
-    fontFamily: "'Jost',sans-serif", fontSize: '13px', color: '#E2E8F0',
-    background: '#111827', border: '1px solid #1A2332', borderRadius: '10px',
-    padding: '12px 14px', outline: 'none', width: '100%',
+  // Page title
+  pageTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+  },
+  pageTitleIcon: {
+    width: '42px', height: '42px',
+    background: 'rgba(0,255,136,0.1)',
+    border: '1px solid rgba(0,255,136,0.2)',
+    borderRadius: '10px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '18px', color: '#00FF88', flexShrink: 0,
+  },
+  pageTitleText: { fontSize: '20px', fontWeight: 700, color: '#E2E8F0' },
+  pageTitleSub:  { fontSize: '12px', color: '#3A5A6A', marginTop: '2px' },
+
+  // Layout
+  layout: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+    alignItems: 'start',
+  },
+
+  // Card
+  card: {
+    background: '#0D1117',
+    border: '1px solid #1A2332',
+    borderRadius: '16px',
+    padding: '22px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+
+  // Card header
+  cardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    paddingBottom: '4px',
+  },
+  cardHeaderIcon:  { fontSize: '16px', color: '#E2E8F0' },
+  cardHeaderTitle: { fontSize: '16px', fontWeight: 700, color: '#E2E8F0' },
+
+  // Balance row
+  balanceRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 0 4px',
+  },
+  balanceLabel: { fontSize: '12px', color: '#3A5A6A' },
+  balanceVal:   { fontSize: '18px', fontWeight: 700, color: '#E2E8F0' },
+
+  divider: { height: '1px', background: '#1A2332' },
+
+  // Fields
+  fieldGroup: { display: 'flex', flexDirection: 'column', gap: '7px' },
+  label: {
+    fontSize: '11px', fontWeight: 600,
+    letterSpacing: '0.06em',
+    color: '#A2B8C8',
+  },
+
+  // Select with overlay
+  selectWrap: {
+    position: 'relative' as const,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  select: {
+    fontFamily: "'Jost', sans-serif",
+    fontSize: '14px',
+    color: '#E2E8F0',
+    background: '#111827',
+    border: '1px solid #1A2332',
+    borderRadius: '10px',
+    padding: '12px 36px 12px 14px',
+    outline: 'none',
+    width: '100%',
+    cursor: 'pointer',
+    appearance: 'none' as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%233A5A6A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 12px center',
+    position: 'relative' as const,
+    zIndex: 1,
     transition: 'border-color 0.2s',
   },
-  inputWrap:   { display: 'flex', alignItems: 'center', background: '#111827', border: '1px solid #1A2332', borderRadius: '10px', overflow: 'hidden' },
-  inputInner:  { fontFamily: "'Jost',sans-serif", fontSize: '15px', color: '#E2E8F0', background: 'none', border: 'none', outline: 'none', padding: '12px 14px', flex: 1, minWidth: 0 },
-  suffix:      { fontSize: '12px', fontWeight: 600, color: '#3A5A6A', padding: '0 14px', flexShrink: 0 },
-  maxBtn: {
-    fontFamily: "'Jost',sans-serif", fontSize: '10px', fontWeight: 700,
-    color: '#00FF88', background: 'rgba(0,255,136,0.08)',
-    border: '1px solid rgba(0,255,136,0.2)', borderRadius: '6px',
-    padding: '4px 10px', cursor: 'pointer',
-  },
-  errMsg: { fontSize: '11px', color: '#FF5555' },
 
-  quickAmts: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px' },
-  quickBtn: {
-    fontFamily: "'Jost',sans-serif", fontSize: '12px', fontWeight: 500,
-    color: '#5A7A8A', background: '#111827',
-    border: '1px solid #1A2332', borderRadius: '8px',
-    padding: '8px', cursor: 'pointer', transition: 'border-color 0.2s',
+  // Crypto overlay elements
+  cryptoIcon: {
+    position: 'absolute' as const,
+    left: '10px',
+    width: '26px', height: '26px',
+    borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '12px', fontWeight: 700, color: '#fff',
+    zIndex: 2, pointerEvents: 'none' as const, flexShrink: 0,
+  },
+  cryptoSymLabel: {
+    position: 'absolute' as const,
+    left: '44px',
+    fontSize: '14px', fontWeight: 700, color: '#E2E8F0',
+    zIndex: 2, pointerEvents: 'none' as const,
+  },
+  cryptoNameLabel: {
+    position: 'absolute' as const,
+    left: '80px',
+    fontSize: '13px', color: '#5A7A8A',
+    zIndex: 2, pointerEvents: 'none' as const,
   },
 
-  feeCard:  { background: '#111827', border: '1px solid #1A2332', borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' },
-  feeTitle: { fontSize: '12px', fontWeight: 700, color: '#5A7A8A', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: '4px' },
+  // Network overlay elements
+  networkIcon: {
+    position: 'absolute' as const,
+    left: '12px',
+    fontSize: '13px', color: '#00FF88',
+    zIndex: 2, pointerEvents: 'none' as const,
+  },
+  networkLabel: {
+    position: 'absolute' as const,
+    left: '30px',
+    fontSize: '13px', fontWeight: 600, color: '#E2E8F0',
+    zIndex: 2, pointerEvents: 'none' as const,
+    whiteSpace: 'nowrap' as const,
+  },
+  networkFee: {
+    position: 'absolute' as const,
+    left: '155px',
+    fontSize: '12px', color: '#5A7A8A',
+    zIndex: 2, pointerEvents: 'none' as const,
+  },
+
+  // Input
+  input: {
+    fontFamily: "'Jost', sans-serif",
+    fontSize: '13px', color: '#E2E8F0',
+    background: '#111827',
+    border: '1px solid #1A2332',
+    borderRadius: '10px',
+    padding: '12px 14px',
+    outline: 'none',
+    width: '100%',
+    transition: 'border-color 0.2s',
+  },
+
+  // Amount field
+  amountWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#111827',
+    border: '1px solid #1A2332',
+    borderRadius: '10px',
+    overflow: 'hidden',
+  },
+  amountDollar: {
+    padding: '12px 0 12px 14px',
+    fontSize: '14px', color: '#5A7A8A',
+    flexShrink: 0,
+  },
+  amountInput: {
+    fontFamily: "'Jost', sans-serif",
+    fontSize: '15px', fontWeight: 600, color: '#E2E8F0',
+    background: 'none', border: 'none', outline: 'none',
+    padding: '12px 14px',
+    flex: 1, minWidth: 0,
+  },
+  minNote: { fontSize: '11px', color: '#2A4A5A' },
+  errMsg:  { fontSize: '11px', color: '#FF4444' },
+
+  // Fee summary
+  feeSummary: {
+    background: '#111827',
+    border: '1px solid #1A2332',
+    borderRadius: '10px',
+    padding: '14px 16px',
+  },
   feeRow:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  feeLabel: { fontSize: '12px', color: '#3A5A6A' },
-  feeVal:   { fontSize: '12px', fontWeight: 600, color: '#E2E8F0' },
+  feeLabel: { fontSize: '12px', color: '#5A7A8A' },
+  feeVal:   { fontSize: '13px', fontWeight: 600, color: '#E2E8F0' },
 
-  btnGreen: {
-    fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 700,
-    color: '#050A0E', background: '#00FF88',
-    border: 'none', borderRadius: '10px',
-    padding: '13px', cursor: 'pointer', width: '100%',
-    transition: 'opacity 0.15s',
+  // Submit button
+  btnSubmit: {
+    fontFamily: "'Jost', sans-serif",
+    fontSize: '14px', fontWeight: 700,
+    color: '#050A0E',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '14px',
+    cursor: 'pointer',
+    width: '100%',
+    transition: 'opacity 0.15s, background 0.3s',
   },
-  btnBack: {
-    fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 500,
-    color: '#5A7A8A', background: 'transparent',
-    border: '1px solid #1A2332', borderRadius: '10px',
-    padding: '12px 18px', cursor: 'pointer', flexShrink: 0,
+
+  // Empty state
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    padding: '60px 20px',
   },
+  emptyIcon: {
+    fontSize: '36px',
+    color: '#1A2332',
+  },
+  emptyText: { fontSize: '14px', color: '#2A4A5A' },
 
-  confirmBox:    { background: '#111827', border: '1px solid rgba(255,184,0,0.3)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' },
-  confirmTitle:  { fontSize: '14px', fontWeight: 700, color: '#FFB800' },
-  confirmDetail: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  cdRow:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  cdLabel:  { fontSize: '11px', color: '#3A5A6A', textTransform: 'uppercase' as const, letterSpacing: '0.08em' },
-  cdVal:    { fontSize: '13px', fontWeight: 600, color: '#E2E8F0' },
-  confirmWarning: { fontSize: '11px', color: '#FF7A7A', lineHeight: 1.6, background: 'rgba(255,68,68,0.06)', border: '1px solid rgba(255,68,68,0.15)', borderRadius: '8px', padding: '10px 12px' },
-
-  infoCol:      { display: 'flex', flexDirection: 'column', gap: '16px' },
-  infoCard:     { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '20px' },
-  infoCardTitle:{ fontSize: '14px', fontWeight: 700, color: '#E2E8F0' },
-  guideItem:    { display: 'flex', gap: '10px', alignItems: 'flex-start' },
-  guideIcon:    { fontSize: '16px', flexShrink: 0 },
-  guideText:    { fontSize: '12px', color: '#5A7A8A', lineHeight: 1.6 },
-  netRow:       { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #0F1820' },
-  netSym:       { fontSize: '12px', fontWeight: 700, color: '#E2E8F0' },
-  netName:      { fontSize: '10px', color: '#3A5A6A' },
-  netStatus:    { fontSize: '11px', fontWeight: 600 },
-
-  successWrap:  { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', minHeight: '60vh', textAlign: 'center' as const },
-  successIcon:  { width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', color: '#00FF88' },
-  successTitle: { fontSize: '22px', fontWeight: 700, color: '#E2E8F0' },
-  successSub:   { fontSize: '13px', color: '#5A7A8A', lineHeight: 1.7, maxWidth: '420px' },
+  // History
+  historyList: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  historyItem: {
+    background: '#111827',
+    border: '1px solid #1A2332',
+    borderRadius: '12px',
+    padding: '14px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  historyTop: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '10px',
+  },
+  historyLeft:   {},
+  historyAmount: { fontSize: '16px', fontWeight: 700, color: '#E2E8F0' },
+  historyMeta:   { fontSize: '11px', color: '#3A5A6A', marginTop: '2px' },
+  historyBottom: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  historyAddr: { fontSize: '11px', color: '#5A7A8A', fontFamily: 'monospace' },
+  historyDate: { fontSize: '11px', color: '#2A4A5A' },
+  historyFeeRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    borderTop: '1px solid #1A2332',
+    paddingTop: '8px',
+  },
+  historyFeeLabel: { fontSize: '11px', color: '#3A5A6A' },
 };
 
 export default Withdraw;

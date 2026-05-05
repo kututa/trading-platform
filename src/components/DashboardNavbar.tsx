@@ -15,6 +15,7 @@ interface Props {
   route: DashRoute;
   onMenuToggle: () => void;
   onNavigate: (r: DashRoute) => void;
+  mobileMenuOpen: boolean;
 }
 
 const DashboardNavbar: React.FC<Props> = ({ route, onMenuToggle, onNavigate }) => {

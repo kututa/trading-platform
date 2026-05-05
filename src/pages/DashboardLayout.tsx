@@ -103,6 +103,7 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
           route={currentRoute}
           onMenuToggle={() => setSidebarOpen(v => !v)}
           onNavigate={handleNavigate}
+          mobileMenuOpen={sidebarOpen}
         />
         <main className="dash-content" style={l.content}>
           {children ?? <Outlet />}
