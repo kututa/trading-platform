@@ -3,228 +3,103 @@ import { CRYPTO_OPTIONS, DEPOSIT_HISTORY, fmt } from '../mockData';
 
 type Step = 1 | 2 | 3;
 
-/* ── QR Code (SVG-based, no library) ── */
-const QRCode: React.FC<{ value: string }> = ({ value }) => {
-  // Deterministic pixel grid from string hash
-  const size = 21;
-  const pixels: boolean[][] = Array.from({ length: size }, (_, row) =>
-    Array.from({ length: size }, (__, col) => {
-      const isEdge = row < 3 || col < 3 || row >= size - 3 || col >= size - 3;
-      const isCornerBox =
-        (row < 7 && col < 7) ||
-        (row < 7 && col >= size - 7) ||
-        (row >= size - 7 && col < 7);
-      const hash = (value.charCodeAt((row * size + col) % value.length) + row * 7 + col * 13) % 2;
-      return isCornerBox || (!isEdge && hash === 0);
-    })
-  );
-
-  const cellSize = 8;
-  const totalSize = size * cellSize;
-
-  return (
-    <svg width={totalSize} height={totalSize} viewBox={`0 0 ${totalSize} ${totalSize}`} style={{ borderRadius: '8px' }}>
-      <rect width={totalSize} height={totalSize} fill="white" />
-      {pixels.map((row, ri) =>
-        row.map((on, ci) =>
-          on ? (
-            <rect key={`${ri}-${ci}`}
-              x={ci * cellSize} y={ri * cellSize}
-              width={cellSize} height={cellSize}
-              fill="#050A0E"
-            />
-          ) : null
-        )
-      )}
-    </svg>
-  );
-};
-
-/* ── Step indicator ── */
-const StepIndicator: React.FC<{ current: Step }> = ({ current }) => (
-  <div style={d.steps}>
-    {([1, 2, 3] as Step[]).map(s => (
-      <React.Fragment key={s}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <div style={{
-            ...d.stepCircle,
-            background:   s < current ? '#00FF88' : s === current ? 'rgba(0,255,136,0.15)' : '#1A2332',
-            border:       s === current ? '2px solid #00FF88' : '2px solid transparent',
-            color:        s <= current ? '#00FF88' : '#2A4A5A',
-          }}>
-            {s < current ? '✓' : s}
-          </div>
-          <div style={{ fontSize: '10px', color: s === current ? '#00FF88' : '#2A4A5A', whiteSpace: 'nowrap' as const }}>
-            {s === 1 ? 'Select Coin' : s === 2 ? 'Generate Address' : 'Copy & Send'}
-          </div>
-        </div>
-        {s < 3 && <div style={{ ...d.stepLine, background: s < current ? '#00FF88' : '#1A2332' }} />}
-      </React.Fragment>
-    ))}
-  </div>
-);
-
-/* ── Status badge ── */
-const StatusBadge: React.FC<{ status: 'waiting' | 'completed' | 'expired' }> = ({ status }) => {
-  const map = {
-    waiting:   { color: '#FFB800', bg: 'rgba(255,184,0,0.1)',   label: 'Waiting'   },
-    completed: { color: '#00FF88', bg: 'rgba(0,255,136,0.1)',   label: 'Completed' },
-    expired:   { color: '#FF4444', bg: 'rgba(255,68,68,0.1)',   label: 'Expired'   },
-  };
-  const { color, bg, label } = map[status];
-  return <span style={{ fontSize: '11px', fontWeight: 600, color, background: bg, padding: '3px 10px', borderRadius: '6px' }}>{label}</span>;
-};
-
-/* ═══════════════════════════════════════════ DEPOSIT PAGE ═══ */
 const Deposit: React.FC = () => {
-  const [step,        setStep]       = useState<Step>(1);
-  const [selectedCoin, setSelectedCoin] = useState(CRYPTO_OPTIONS[0]);
-  const [address,     setAddress]    = useState('');
-  const [copied,      setCopied]     = useState(false);
-
-  const MOCK_ADDRESSES: Record<string, string> = {
-    USDT: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
-    BTC:  '1A1zP1eP5QGefi2DMPTfTL5SLmv7Divf8a',
-    ETH:  '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-    BNB:  'bnb1grpf0955h0ykzq3ar5nmum7y6gdfl6lxfn46h2',
-    SOL:  'HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH',
-    XRP:  'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh',
-  };
-
-  const generateAddress = () => {
-    setAddress(MOCK_ADDRESSES[selectedCoin.sym] ?? '0x000...DEMO');
-    setStep(3);
-  };
-
-  const copyAddress = () => {
-    navigator.clipboard.writeText(address).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const [step, setStep] = useState<Step>(2); // Defaulted to step 2 to match your screenshot
+  const [selectedCrypto, setSelectedCrypto] = useState("");
 
   return (
-    <div style={d.page}>
-
-      {/* LEFT — deposit flow */}
-      <div style={d.left}>
-        <div style={d.card}>
-          <div style={d.cardHeader}>
-            <div style={d.cardTitle}>New Deposit</div>
-            <div style={d.balancePill}>
-              <span style={{ color: '#3A5A6A', fontSize: '11px' }}>Balance:</span>
-              <span style={{ color: '#00FF88', fontWeight: 700, fontSize: '13px' }}>$0.00</span>
-            </div>
-          </div>
-
-          {/* Step indicator */}
-          <StepIndicator current={step} />
-
-          {/* ── Step 1: Select crypto ── */}
-          {step === 1 && (
-            <div style={d.stepContent}>
-              <div style={d.stepTitle}>Select Cryptocurrency</div>
-              <div style={d.coinGrid}>
-                {CRYPTO_OPTIONS.map(c => (
-                  <div key={c.sym}
-                    style={{ ...d.coinOption, ...(selectedCoin.sym === c.sym ? d.coinOptionSel : {}) }}
-                    onClick={() => setSelectedCoin(c)}
-                  >
-                    <div style={d.coinSym}>{c.sym}</div>
-                    <div style={d.coinNetwork}>{c.network}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={d.selectedInfo}>
-                <div style={d.selectedRow}>
-                  <span style={d.selectedLabel}>Selected</span>
-                  <span style={d.selectedVal}>{selectedCoin.name} ({selectedCoin.sym})</span>
-                </div>
-                <div style={d.selectedRow}>
-                  <span style={d.selectedLabel}>Network</span>
-                  <span style={d.selectedVal}>{selectedCoin.network}</span>
-                </div>
-              </div>
-              <button style={d.btnNext} onClick={() => setStep(2)}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-              >Continue →</button>
-            </div>
-          )}
-
-          {/* ── Step 2: Generate address ── */}
-          {step === 2 && (
-            <div style={d.stepContent}>
-              <div style={d.stepTitle}>Generate Wallet Address</div>
-              <div style={d.infoBox}>
-                <div style={d.infoIcon}>ℹ</div>
-                <div style={d.infoText}>
-                  A unique {selectedCoin.sym} address will be generated for your deposit on the <strong>{selectedCoin.network}</strong> network. Send only {selectedCoin.sym} to this address.
-                </div>
-              </div>
-              <div style={d.warningBox}>
-                ⚠ Do not send any other asset to this address or funds may be lost permanently.
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button style={d.btnBack} onClick={() => setStep(1)}>← Back</button>
-                <button style={{ ...d.btnNext, flex: 1 }} onClick={generateAddress}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                >Generate Address</button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 3: QR + address ── */}
-          {step === 3 && (
-            <div style={d.stepContent}>
-              <div style={d.stepTitle}>Scan QR or Copy Address</div>
-              <div style={d.qrWrap}>
-                <div style={d.qrBox}>
-                  <QRCode value={address} />
-                </div>
-                <div style={d.qrLabel}>Scan with your wallet app</div>
-              </div>
-              <div style={d.addrLabel}>Deposit Address ({selectedCoin.network})</div>
-              <div style={d.addrBox}>
-                <span style={d.addrText}>{address}</span>
-                <button style={d.copyBtn} onClick={copyAddress}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#00FF88')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = '#1A2332')}
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
-              </div>
-              <div style={d.noteBox}>
-                <div style={d.noteTitle}>⏱ Important</div>
-                <ul style={{ paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <li style={d.noteItem}>Minimum deposit: 10 USDT equivalent</li>
-                  <li style={d.noteItem}>Network confirmations required: 6</li>
-                  <li style={d.noteItem}>Address expires in 24 hours</li>
-                </ul>
-              </div>
-              <button style={d.btnBack} onClick={() => { setStep(1); setAddress(''); }}>← New Deposit</button>
-            </div>
-          )}
+    <div style={styles.container}>
+      {/* Header */}
+      <div style={styles.header}>
+        <div style={styles.headerIcon}>↗</div>
+        <div>
+          <h1 style={styles.title}>Deposit Crypto</h1>
+          <p style={styles.subtitle}>Deposit cryptocurrency to fund your account</p>
         </div>
       </div>
 
-      {/* RIGHT — history */}
-      <div style={d.right}>
-        <div style={d.card}>
-          <div style={d.cardTitle}>Deposit History</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
-            {DEPOSIT_HISTORY.map(dep => (
-              <div key={dep.id} style={d.historyItem}>
-                <div style={d.historyTop}>
-                  <div>
-                    <div style={d.historyAmount}>${dep.amount.toLocaleString()}</div>
-                    <div style={d.historyCrypto}>{dep.cryptoAmount}</div>
-                  </div>
-                  <StatusBadge status={dep.status} />
+      <div style={styles.grid}>
+        {/* Left Card: New Deposit */}
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <div style={styles.iconTitle}>
+               <span style={{ marginRight: '8px' }}>🗂</span> New Deposit
+            </div>
+            <div style={styles.balance}>
+               <span style={styles.balanceLabel}>Current Balance</span>
+               <span style={styles.balanceValue}>$0.00</span>
+            </div>
+          </div>
+
+          {/* Progress Indicator */}
+          <div style={styles.progressRow}>
+            {[1, 2, 3].map((s) => (
+              <React.Fragment key={s}>
+                <div style={{
+                  ...styles.stepCircle,
+                  background: s <= step ? '#00E676' : '#1A1D23',
+                  color: s <= step ? '#000' : '#4A5568'
+                }}>
+                  {s}
                 </div>
-                <div style={d.historyBottom}>
-                  <div style={d.historyAddr}>{fmt.addr(dep.address)}</div>
-                  <div style={d.historyDate}>{dep.date}</div>
+                {s < 3 && <div style={{ ...styles.stepLine, background: s < step ? '#00E676' : '#2D3748' }} />}
+              </React.Fragment>
+            ))}
+          </div>
+
+          <div style={styles.stepTitleSection}>
+            <h2 style={styles.stepHeading}>Select Currency & Network</h2>
+            <p style={styles.stepSubheading}>Depositing $50.00</p>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Select Cryptocurrency</label>
+            <select 
+              style={styles.select} 
+              value={selectedCrypto}
+              onChange={(e) => setSelectedCrypto(e.target.value)}
+            >
+              <option value="">Select a cryptocurrency</option>
+              {CRYPTO_OPTIONS.map(c => <option key={c.sym} value={c.sym}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div style={styles.buttonGroup}>
+            <button style={styles.btnBack} onClick={() => setStep(1)}>← Back</button>
+            <button style={styles.btnGenerate}>
+               <span style={{ marginRight: '8px' }}>㗊</span> Generate Address
+            </button>
+          </div>
+        </div>
+
+        {/* Right Card: Deposit History */}
+        <div style={styles.card}>
+          <div style={styles.iconTitle}>
+             <span style={{ marginRight: '8px' }}>🕒</span> Deposit History
+          </div>
+          
+          <div style={styles.historyList}>
+            {DEPOSIT_HISTORY.map((item, idx) => (
+              <div key={idx} style={styles.historyItem}>
+                <div style={styles.historyMain}>
+                  <div style={styles.historyInfo}>
+                    <div style={styles.historyHeader}>
+                      <span style={styles.coinIcon}>{item.sym === 'USDT' ? '💎' : '₿'}</span>
+                      <span style={styles.historyAmount}>${item.amount}</span>
+                    </div>
+                    <div style={styles.historyAddr}>{fmt.addr(item.address)}</div>
+                    <div style={styles.historyCryptoAmt}>{item.cryptoAmount}</div>
+                  </div>
+                  <div style={styles.historyStatus}>
+                    <div style={{
+                      ...styles.statusBadge,
+                      color: item.status === 'waiting' ? '#FFB800' : '#FF5252',
+                      background: item.status === 'waiting' ? 'rgba(255,184,0,0.1)' : 'rgba(255,82,82,0.1)'
+                    }}>
+                      {item.status === 'waiting' ? '◌ Waiting' : 'ⓧ Expired'}
+                    </div>
+                    <div style={styles.historyDate}>{item.date}</div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -233,90 +108,50 @@ const Deposit: React.FC = () => {
       </div>
 
       <style>{`
-        @media (max-width: 860px) {
-          .deposit-page { grid-template-columns: 1fr !important; }
+        @media (max-width: 900px) {
+          .deposit-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
   );
 };
 
-const d: Record<string, React.CSSProperties> = {
-  page:  { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' },
-  left:  {},
-  right: {},
-  card:  { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '24px' },
-  cardHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' },
-  cardTitle:  { fontSize: '16px', fontWeight: 700, color: '#E2E8F0' },
-  balancePill:{ display: 'flex', alignItems: 'center', gap: '6px', background: '#111827', border: '1px solid #1A2332', borderRadius: '20px', padding: '5px 12px' },
-
-  steps:      { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0', marginBottom: '28px' },
-  stepCircle: { width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, transition: 'all 0.3s' },
-  stepLine:   { flex: 1, height: '2px', minWidth: '32px', maxWidth: '60px', transition: 'background 0.3s' },
-
-  stepContent: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  stepTitle:   { fontSize: '14px', fontWeight: 600, color: '#E2E8F0' },
-
-  coinGrid:   { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' },
-  coinOption: {
-    padding: '12px 8px', background: '#111827', border: '1px solid #1A2332',
-    borderRadius: '10px', cursor: 'pointer', textAlign: 'center' as const,
-    transition: 'border-color 0.2s',
-  },
-  coinOptionSel: { borderColor: '#00FF88', background: 'rgba(0,255,136,0.06)' },
-  coinSym:    { fontSize: '13px', fontWeight: 700, color: '#E2E8F0', marginBottom: '2px' },
-  coinNetwork:{ fontSize: '10px', color: '#3A5A6A' },
-
-  selectedInfo: { background: '#111827', border: '1px solid #1A2332', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' },
-  selectedRow:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  selectedLabel:{ fontSize: '11px', color: '#3A5A6A', letterSpacing: '0.08em', textTransform: 'uppercase' as const },
-  selectedVal:  { fontSize: '13px', fontWeight: 600, color: '#E2E8F0' },
-
-  infoBox:    { display: 'flex', gap: '10px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: '10px', padding: '12px' },
-  infoIcon:   { fontSize: '16px', color: '#00FF88', flexShrink: 0 },
-  infoText:   { fontSize: '12px', color: '#7A9AAA', lineHeight: 1.6 },
-  warningBox: { background: 'rgba(255,68,68,0.06)', border: '1px solid rgba(255,68,68,0.2)', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', color: '#FF7A7A', lineHeight: 1.6 },
-
-  btnNext: {
-    fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 700,
-    color: '#050A0E', background: '#00FF88',
-    border: 'none', borderRadius: '10px',
-    padding: '13px', cursor: 'pointer',
-    transition: 'opacity 0.15s', width: '100%',
-  },
-  btnBack: {
-    fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 500,
-    color: '#5A7A8A', background: 'transparent',
-    border: '1px solid #1A2332', borderRadius: '10px',
-    padding: '12px 16px', cursor: 'pointer',
-    flexShrink: 0,
-  },
-
-  qrWrap:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' },
-  qrBox:    { padding: '16px', background: 'white', borderRadius: '12px', display: 'inline-block' },
-  qrLabel:  { fontSize: '11px', color: '#3A5A6A' },
-
-  addrLabel: { fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: '#2A4A5A' },
-  addrBox:   { display: 'flex', alignItems: 'center', gap: '10px', background: '#111827', border: '1px solid #1A2332', borderRadius: '10px', padding: '12px 14px' },
-  addrText:  { fontSize: '11px', color: '#7A9AAA', flex: 1, wordBreak: 'break-all' as const, fontFamily: 'monospace' },
-  copyBtn: {
-    fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600,
-    color: '#00FF88', background: 'transparent', border: '1px solid #1A2332',
-    borderRadius: '8px', padding: '6px 14px', cursor: 'pointer',
-    flexShrink: 0, transition: 'border-color 0.2s',
-  },
-
-  noteBox:   { background: '#111827', border: '1px solid #1A2332', borderRadius: '10px', padding: '14px' },
-  noteTitle: { fontSize: '12px', fontWeight: 700, color: '#E2E8F0', marginBottom: '8px' },
-  noteItem:  { fontSize: '11px', color: '#5A7A8A', lineHeight: 1.6 },
-
-  historyItem:   { background: '#111827', border: '1px solid #1A2332', borderRadius: '12px', padding: '14px 16px' },
-  historyTop:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' },
-  historyAmount: { fontSize: '16px', fontWeight: 700, color: '#E2E8F0', marginBottom: '2px' },
-  historyCrypto: { fontSize: '11px', color: '#3A5A6A' },
-  historyBottom: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  historyAddr:   { fontSize: '11px', color: '#5A7A8A', fontFamily: 'monospace' },
-  historyDate:   { fontSize: '11px', color: '#2A4A5A' },
+const styles: Record<string, React.CSSProperties> = {
+  container: { padding: '40px', backgroundColor: '#000', minHeight: '100vh', color: '#fff', fontFamily: 'Inter, sans-serif' },
+  header: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' },
+  headerIcon: { backgroundColor: '#064e3b', color: '#00E676', padding: '10px', borderRadius: '8px', fontWeight: 'bold' },
+  title: { fontSize: '24px', margin: 0 },
+  subtitle: { color: '#718096', margin: 0, fontSize: '14px' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' },
+  card: { backgroundColor: '#0D0F12', border: '1px solid #1A1D23', borderRadius: '16px', padding: '32px' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' },
+  iconTitle: { fontSize: '18px', fontWeight: 600, display: 'flex', alignItems: 'center' },
+  balance: { textAlign: 'right' },
+  balanceLabel: { display: 'block', color: '#718096', fontSize: '12px', marginBottom: '4px' },
+  balanceValue: { fontSize: '20px', fontWeight: 'bold' },
+  progressRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '40px' },
+  stepCircle: { width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px' },
+  stepLine: { height: '2px', width: '40px', margin: '0 8px' },
+  stepTitleSection: { textAlign: 'center', marginBottom: '32px' },
+  stepHeading: { fontSize: '18px', margin: '0 0 8px 0' },
+  stepSubheading: { color: '#718096', fontSize: '14px', margin: 0 },
+  formGroup: { marginBottom: '24px' },
+  label: { display: 'block', color: '#E2E8F0', fontSize: '14px', marginBottom: '12px' },
+  select: { width: '100%', padding: '14px', backgroundColor: '#1A1D23', border: '1px solid #2D3748', borderRadius: '8px', color: '#fff', outline: 'none' },
+  buttonGroup: { display: 'flex', gap: '12px', marginTop: '32px' },
+  btnBack: { flex: 1, padding: '14px', backgroundColor: '#1A1D23', border: '1px solid #2D3748', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 },
+  btnGenerate: { flex: 2, padding: '14px', backgroundColor: '#00E676', border: 'none', color: '#000', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  historyList: { marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  historyItem: { borderBottom: '1px solid #1A1D23', paddingBottom: '16px' },
+  historyMain: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  historyHeader: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' },
+  coinIcon: { fontSize: '18px' },
+  historyAmount: { fontSize: '18px', fontWeight: 600 },
+  historyAddr: { fontSize: '12px', color: '#4A5568', fontFamily: 'monospace' },
+  historyCryptoAmt: { fontSize: '12px', color: '#718096' },
+  historyStatus: { textAlign: 'right' },
+  statusBadge: { padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '8px', display: 'inline-block' },
+  historyDate: { fontSize: '12px', color: '#4A5568' }
 };
 
 export default Deposit;
