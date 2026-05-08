@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import DashboardSidebar, { type DashRoute } from '../components/DashboardSidebar';
-import DashboardNavbar from '../components/DashboardNavbar';
 import { useAuth } from '../context/AuthContext';
 
 interface Props {
@@ -38,6 +37,10 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
     navigate('/login');
   });
 
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div style={l.root}>
       <style>{`
@@ -63,6 +66,7 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
         @media (max-width: 768px) {
           .dashboard-sidebar { transform: translateX(-100%) !important; }
           .dashboard-sidebar.is-open { transform: translateX(0) !important; }
+          .dashboard-mobile-toggle { display: flex !important; }
           .sidebar-overlay { display: block !important; }
           .dash-main { margin-left: 0 !important; }
           .dash-content { padding: 14px !important; }
@@ -71,6 +75,7 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
         @media (min-width: 769px) {
           .dashboard-sidebar { transform: translateX(0) !important; }
           .sidebar-overlay   { display: none !important; }
+          .dashboard-mobile-toggle { display: none !important; }
         }
       `}</style>
 
@@ -97,14 +102,21 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
         />
       )}
 
+      {/* Mobile menu toggle */}
+      <button
+        type="button"
+        className="dashboard-mobile-toggle"
+        aria-label="Open menu"
+        onClick={() => setSidebarOpen(v => !v)}
+        style={l.mobileToggle}
+      >
+        <span style={l.mobileToggleLine} />
+        <span style={l.mobileToggleLine} />
+        <span style={l.mobileToggleLine} />
+      </button>
+
       {/* Main */}
       <div className="dash-main" style={l.main}>
-        <DashboardNavbar
-          route={currentRoute}
-          onMenuToggle={() => setSidebarOpen(v => !v)}
-          onNavigate={handleNavigate}
-          mobileMenuOpen={sidebarOpen}
-        />
         <main className="dash-content" style={l.content}>
           {children ?? <Outlet />}
         </main>
@@ -132,6 +144,27 @@ const l: Record<string, React.CSSProperties> = {
     padding: '24px',
     flex: 1,
     overflowX: 'hidden',
+  },
+  mobileToggle: {
+    position: 'fixed',
+    top: '16px',
+    left: '16px',
+    zIndex: 360,
+    display: 'none',
+    flexDirection: 'column',
+    gap: '5px',
+    background: '#0D1117',
+    border: '1px solid #1A2332',
+    borderRadius: '10px',
+    padding: '10px',
+    cursor: 'pointer',
+  },
+  mobileToggleLine: {
+    display: 'block',
+    width: '20px',
+    height: '2px',
+    background: '#E2E8F0',
+    borderRadius: '1px',
   },
 };
 

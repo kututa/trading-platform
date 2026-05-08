@@ -24,97 +24,82 @@ const DashboardSidebar: React.FC<Props> = ({ route, onNavigate, onLogout, isOpen
   const { user } = useUser();
 
   return (
-    <>
-      {/* Overlay on mobile */}
-      {isOpen && (
-        <div
-          onClick={onClose}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.7)',
-            zIndex: 299,
-          }}
-          className="sidebar-overlay"
-        />
-      )}
+    <aside
+      className={`dashboard-sidebar${isOpen ? ' is-open' : ''}`}
+      style={{
+        width: '220px',
+        minWidth: '220px',
+        background: '#0D1117',
+        borderRight: '1px solid #1A2332',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '0 0 20px',
+        position: 'fixed' as const,
+        top: 0,
+        left: 0,
+        height: '100vh',
+        zIndex: 300,
+        transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
+        overflowY: 'auto',
+        transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+      }}
+    >
+      {/* Logo */}
+      <div style={s.logo}>
+        <div style={s.logoMark}>H</div>
+        <div>
+          <div style={s.logoName}>Vantrex</div>
+          <div style={s.logoSub}>Markets</div>
+        </div>
+      </div>
 
-      <aside
-        className="dashboard-sidebar"
-        style={{
-          width: '220px',
-          minWidth: '220px',
-          background: '#0D1117',
-          borderRight: '1px solid #1A2332',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '0 0 20px',
-          position: 'fixed' as const,
-          top: 0,
-          left: 0,
-          height: '100vh',
-          zIndex: 300,
-          transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
-          overflowY: 'auto',
-          transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
-        }}
+      {/* Nav links */}
+      <nav style={s.nav}>
+        <div style={s.navSection}>MENU</div>
+        {NAV.map(item => {
+          const active = route === item.id;
+          return (
+            <button
+              key={item.id}
+              style={{
+                ...s.navItem,
+                ...(active ? s.navItemActive : {}),
+              }}
+              onClick={() => { onNavigate(item.id); onClose(); }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span style={{ ...s.navIcon, ...(active ? { color: '#00FF88' } : {}) }}>
+                {item.icon}
+              </span>
+              <span style={s.navLabel}>{item.label}</span>
+              {active && <span style={s.activeBar} />}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div style={s.spacer} />
+
+      {/* User card */}
+      <div style={s.userCard}>
+        <div style={s.avatar}>{user.name[0]}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={s.userName}>{user.name}</div>
+          <div style={s.userEmail}>{user.email}</div>
+        </div>
+      </div>
+
+      {/* Logout */}
+      <button
+        style={s.logoutBtn}
+        onClick={onLogout}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = '#FF4444')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = '#1A2332')}
       >
-        {/* Logo */}
-        <div style={s.logo}>
-          <div style={s.logoMark}>H</div>
-          <div>
-            <div style={s.logoName}>Vantrex</div>
-            <div style={s.logoSub}>Markets</div>
-          </div>
-        </div>
-
-        {/* Nav links */}
-        <nav style={s.nav}>
-          <div style={s.navSection}>MENU</div>
-          {NAV.map(item => {
-            const active = route === item.id;
-            return (
-              <button
-                key={item.id}
-                style={{
-                  ...s.navItem,
-                  ...(active ? s.navItemActive : {}),
-                }}
-                onClick={() => { onNavigate(item.id); onClose(); }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <span style={{ ...s.navIcon, ...(active ? { color: '#00FF88' } : {}) }}>
-                  {item.icon}
-                </span>
-                <span style={s.navLabel}>{item.label}</span>
-                {active && <span style={s.activeBar} />}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div style={s.spacer} />
-
-        {/* User card */}
-        <div style={s.userCard}>
-          <div style={s.avatar}>{user.name[0]}</div>
-          <div style={{ minWidth: 0 }}>
-            <div style={s.userName}>{user.name}</div>
-            <div style={s.userEmail}>{user.email}</div>
-          </div>
-        </div>
-
-        {/* Logout */}
-        <button
-          style={s.logoutBtn}
-          onClick={onLogout}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#FF4444')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = '#1A2332')}
-        >
-          <span>⇤</span> Sign Out
-        </button>
-      </aside>
-    </>
+        <span>⇤</span> Sign Out
+      </button>
+    </aside>
   );
 };
 
