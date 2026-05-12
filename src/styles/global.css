@@ -205,3 +205,66 @@ ul {
   border-radius: 4px;
   padding: 28px;
 }
+
+
+/* ── Dashboard Layout Shell ── */
+
+.dashboard-wrapper {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+.sidebar {
+  width: 260px;
+  background: var(--navy-mid);
+  border-right: 1px solid var(--border);
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 260px; /* Match sidebar width */
+  min-width: 0; /* Critical for flex-child overflow handling */
+  padding: 24px;
+  transition: margin-left 0.3s ease;
+}
+
+/* Mobile Adjustments (max-width 1024px) */
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%); /* Hide sidebar */
+  }
+
+  .sidebar.active {
+    transform: translateX(0); /* Toggle via JS */
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 16px;
+  }
+}
+
+/* Table Helper */
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+  background: #0D1117;
+}
+
+/* Custom Scrollbar for the table */
+.table-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--slate);
+  border-radius: 10px;
+}
