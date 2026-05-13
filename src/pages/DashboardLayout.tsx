@@ -37,9 +37,16 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
     navigate('/login');
   });
 
+  // Close sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  // Lock body scroll when sidebar is open on mobile
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
 
   return (
     <div style={l.root}>
@@ -60,22 +67,45 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
         ::-webkit-scrollbar-track { background: #0A0F14; }
         ::-webkit-scrollbar-thumb { background: #1A3A2A; border-radius: 4px; }
 
-        /* Sidebar visible on desktop; slide-in on mobile */
-        .dashboard-sidebar { transform: translateX(0) !important; }
-
-        @media (max-width: 768px) {
-          .dashboard-sidebar { transform: translateX(-100%) !important; }
-          .dashboard-sidebar.is-open { transform: translateX(0) !important; }
-          .dashboard-mobile-toggle { display: flex !important; }
-          .sidebar-overlay { display: block !important; }
-          .dash-main { margin-left: 0 !important; }
-          .dash-content { padding: 14px !important; }
+        /* ── Sidebar ── */
+        .dashboard-sidebar {
+          position: fixed;
+          top: 0; left: 0;
+          height: 100vh;
+          z-index: 300;
+          transition: transform 0.25s ease;
         }
 
+        /* Desktop: always visible */
         @media (min-width: 769px) {
           .dashboard-sidebar { transform: translateX(0) !important; }
-          .sidebar-overlay   { display: none !important; }
+          .sidebar-overlay { display: none !important; }
           .dashboard-mobile-toggle { display: none !important; }
+          .dash-main { margin-left: 220px !important; }
+        }
+
+        /* Mobile: slide in/out */
+        @media (max-width: 768px) {
+          .dashboard-sidebar { transform: translateX(-100%); }
+          .dashboard-sidebar.is-open { transform: translateX(0); }
+          .dashboard-mobile-toggle { display: flex !important; }
+          .dash-main { margin-left: 0 !important; }
+          .dash-content {
+            padding: 16px !important;
+            padding-top: 60px !important; /* clear the toggle button */
+          }
+        }
+
+        /* Overlay */
+        .sidebar-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.72);
+          z-index: 298;
+        }
+        .sidebar-overlay.is-visible {
+          display: block;
         }
       `}</style>
 
@@ -88,34 +118,39 @@ const DashboardLayout: React.FC<Props> = ({ children, route, onNavigate, onLogou
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Mobile overlay behind sidebar */}
-      {sidebarOpen && (
-        <div
-          className="sidebar-overlay"
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.72)',
-            zIndex: 298,
-            display: 'none', // toggled by CSS class
-          }}
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Overlay — behind sidebar, above main */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' is-visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
 
       {/* Mobile menu toggle */}
       <button
         type="button"
         className="dashboard-mobile-toggle"
-        aria-label="Open menu"
+        aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={sidebarOpen}
         onClick={() => setSidebarOpen(v => !v)}
         style={l.mobileToggle}
       >
-        <span style={l.mobileToggleLine} />
-        <span style={l.mobileToggleLine} />
-        <span style={l.mobileToggleLine} />
+        {sidebarOpen ? (
+          /* × icon when open */
+          <>
+            <span style={{ ...l.mobileToggleLine, transform: 'rotate(45deg) translate(5px, 5px)' }} />
+            <span style={{ ...l.mobileToggleLine, opacity: 0 }} />
+            <span style={{ ...l.mobileToggleLine, transform: 'rotate(-45deg) translate(5px, -5px)' }} />
+          </>
+        ) : (
+          <>
+            <span style={l.mobileToggleLine} />
+            <span style={l.mobileToggleLine} />
+            <span style={l.mobileToggleLine} />
+          </>
+        )}
       </button>
 
-      {/* Main */}
+      {/* Main content */}
       <div className="dash-main" style={l.main}>
         <main className="dash-content" style={l.content}>
           {children ?? <Outlet />}
@@ -134,7 +169,7 @@ const l: Record<string, React.CSSProperties> = {
   },
   main: {
     flex: 1,
-    marginLeft: '220px',
+    marginLeft: '220px', // overridden to 0 on mobile via CSS
     display: 'flex',
     flexDirection: 'column',
     minHeight: '100vh',
@@ -147,10 +182,10 @@ const l: Record<string, React.CSSProperties> = {
   },
   mobileToggle: {
     position: 'fixed',
-    top: '16px',
-    left: '16px',
+    top: '14px',
+    left: '14px',
     zIndex: 360,
-    display: 'none',
+    display: 'none', // shown via CSS on mobile
     flexDirection: 'column',
     gap: '5px',
     background: '#0D1117',
@@ -165,6 +200,7 @@ const l: Record<string, React.CSSProperties> = {
     height: '2px',
     background: '#E2E8F0',
     borderRadius: '1px',
+    transition: 'transform 0.2s ease, opacity 0.2s ease',
   },
 };
 

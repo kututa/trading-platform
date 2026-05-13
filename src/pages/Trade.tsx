@@ -29,7 +29,7 @@ const CandleChart: React.FC<{ basePrice: number }> = ({ basePrice }) => {
   });
 
   return (
-    <div className="chart-container" style={{ width: '100%', overflow: 'hidden' }}>
+    <div style={{ width: '100%', overflow: 'hidden' }}>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
         {gridLines.map((g, i) => (
           <g key={i}>
@@ -117,6 +117,7 @@ const Trade: React.FC = () => {
   const [price, setPrice] = useState('');
   const [amount, setAmount] = useState('');
   const [bottomTab, setBottomTab] = useState<BottomTab>('orders');
+  const [showMarkets, setShowMarkets] = useState(false);
 
   const total = useMemo(() => {
     const p = parseFloat(price) || selectedPair.price;
@@ -136,28 +137,35 @@ const Trade: React.FC = () => {
   return (
     <div style={t.page}>
       <div className="trade-layout" style={t.threeCol}>
-        
-        {/* LEFT — pairs list (Hidden on small mobile or scrollable) */}
+
+        {/* LEFT — pairs list */}
         <div className="trade-left" style={t.leftCol}>
           <div style={t.colCard}>
             <div style={t.colTitle}>Markets</div>
             <div style={t.pairSearchWrap}>
               <span style={t.pairSearchIcon}>⌕</span>
-              <input style={t.pairSearchInput} placeholder="Search..."
-                value={pairSearch} onChange={e => setPairSearch(e.target.value)} />
+              <input
+                style={t.pairSearchInput}
+                placeholder="Search..."
+                value={pairSearch}
+                onChange={e => setPairSearch(e.target.value)}
+              />
             </div>
             <div style={t.pairList}>
               {filteredPairs.map(a => {
                 const sel = a.id === selectedPair.id;
                 return (
-                  <div key={a.id} style={{ ...t.pairItem, ...(sel ? t.pairItemSel : {}) }}
-                    onClick={() => setSelectedPair(a)}>
+                  <div
+                    key={a.id}
+                    style={{ ...t.pairItem, ...(sel ? t.pairItemSel : {}) }}
+                    onClick={() => setSelectedPair(a)}
+                  >
                     <div style={{ ...t.pairDot, background: a.color }} />
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={t.pairSym}>{a.sym}/USDT</div>
                       <div style={t.pairPrice}>{fmt.price(a.price)}</div>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: a.change24h >= 0 ? '#00FF88' : '#FF4444' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: a.change24h >= 0 ? '#00FF88' : '#FF4444', flexShrink: 0 }}>
                       {fmt.pct(a.change24h)}
                     </span>
                   </div>
@@ -171,25 +179,74 @@ const Trade: React.FC = () => {
         <div className="trade-center" style={t.centerCol}>
           <div style={t.colCard}>
             <div style={t.chartHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <div style={{ ...t.chartDot, background: selectedPair.color }} />
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={t.chartPair}>{selectedPair.sym}/USDT</div>
                   <div style={t.chartName}>{selectedPair.name}</div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={t.chartPrice}>{fmt.price(selectedPair.price)}</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: up ? '#00FF88' : '#FF4444' }}>
-                  {fmt.pct(selectedPair.change24h)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                {/* Mobile: markets toggle */}
+                <button
+                  className="markets-toggle"
+                  style={t.marketsToggle}
+                  onClick={() => setShowMarkets(v => !v)}
+                >
+                  {showMarkets ? 'Hide Markets' : 'Markets'}
+                </button>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={t.chartPrice}>{fmt.price(selectedPair.price)}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: up ? '#00FF88' : '#FF4444' }}>
+                    {fmt.pct(selectedPair.change24h)}
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* Mobile markets drawer */}
+            {showMarkets && (
+              <div className="mobile-markets" style={t.mobileMarkets}>
+                <div style={t.pairSearchWrap}>
+                  <span style={t.pairSearchIcon}>⌕</span>
+                  <input
+                    style={t.pairSearchInput}
+                    placeholder="Search..."
+                    value={pairSearch}
+                    onChange={e => setPairSearch(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {filteredPairs.map(a => {
+                    const sel = a.id === selectedPair.id;
+                    return (
+                      <div
+                        key={a.id}
+                        style={{ ...t.pairItem, ...(sel ? t.pairItemSel : {}) }}
+                        onClick={() => { setSelectedPair(a); setShowMarkets(false); }}
+                      >
+                        <div style={{ ...t.pairDot, background: a.color }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={t.pairSym}>{a.sym}/USDT</div>
+                          <div style={t.pairPrice}>{fmt.price(a.price)}</div>
+                        </div>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: a.change24h >= 0 ? '#00FF88' : '#FF4444', flexShrink: 0 }}>
+                          {fmt.pct(a.change24h)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div style={t.tfRow}>
-              {(['1H','4H','1D','1W'] as TF[]).map(f => (
-                <button key={f} style={{ ...t.tfBtn, ...(tf === f ? t.tfBtnActive : {}) }}
-                  onClick={() => setTf(f)}>{f}</button>
+              {(['1H', '4H', '1D', '1W'] as TF[]).map(f => (
+                <button
+                  key={f}
+                  style={{ ...t.tfBtn, ...(tf === f ? t.tfBtnActive : {}) }}
+                  onClick={() => setTf(f)}
+                >{f}</button>
               ))}
               <div className="chart-vol-hide" style={{ marginLeft: 'auto', fontSize: '11px', color: '#2A4A5A' }}>
                 Vol: {fmt.vol(selectedPair.volume24h)}
@@ -202,7 +259,7 @@ const Trade: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT — order book + buy/sell */}
+        {/* RIGHT — order book + buy/sell form */}
         <div className="trade-right-sidebar" style={t.rightCol}>
           <div style={t.colCard}>
             <OrderBook mid={selectedPair.price} />
@@ -210,16 +267,23 @@ const Trade: React.FC = () => {
 
           <div style={t.colCard}>
             <div style={t.sideToggle}>
-              <button style={{ ...t.sideBtn, ...(side === 'buy' ? t.sideBtnBuy : {}) }}
-                onClick={() => setSide('buy')}>Buy</button>
-              <button style={{ ...t.sideBtn, ...(side === 'sell' ? t.sideBtnSell : {}) }}
-                onClick={() => setSide('sell')}>Sell</button>
+              <button
+                style={{ ...t.sideBtn, ...(side === 'buy' ? t.sideBtnBuy : {}) }}
+                onClick={() => setSide('buy')}
+              >Buy</button>
+              <button
+                style={{ ...t.sideBtn, ...(side === 'sell' ? t.sideBtnSell : {}) }}
+                onClick={() => setSide('sell')}
+              >Sell</button>
             </div>
 
             <div style={t.orderTypeRow}>
-              {(['limit','market'] as OrderType[]).map(ot => (
-                <button key={ot} style={{ ...t.otBtn, ...(orderType === ot ? t.otBtnActive : {}) }}
-                  onClick={() => setOrderType(ot)}>
+              {(['limit', 'market'] as OrderType[]).map(ot => (
+                <button
+                  key={ot}
+                  style={{ ...t.otBtn, ...(orderType === ot ? t.otBtnActive : {}) }}
+                  onClick={() => setOrderType(ot)}
+                >
                   {ot.charAt(0).toUpperCase() + ot.slice(1)}
                 </button>
               ))}
@@ -229,9 +293,13 @@ const Trade: React.FC = () => {
               <div style={t.inputGroup}>
                 <label style={t.inputLabel}>Price (USDT)</label>
                 <div style={t.inputWrap}>
-                  <input style={t.input} type="number"
+                  <input
+                    style={t.input}
+                    type="number"
                     placeholder={selectedPair.price.toFixed(2)}
-                    value={price} onChange={e => setPrice(e.target.value)} />
+                    value={price}
+                    onChange={e => setPrice(e.target.value)}
+                  />
                   <span style={t.inputSuffix}>USDT</span>
                 </div>
               </div>
@@ -240,14 +308,19 @@ const Trade: React.FC = () => {
             <div style={t.inputGroup}>
               <label style={t.inputLabel}>Amount ({selectedPair.sym})</label>
               <div style={t.inputWrap}>
-                <input style={t.input} type="number" placeholder="0.00"
-                  value={amount} onChange={e => setAmount(e.target.value)} />
+                <input
+                  style={t.input}
+                  type="number"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                />
                 <span style={t.inputSuffix}>{selectedPair.sym}</span>
               </div>
             </div>
 
             <div style={t.pctRow}>
-              {[25,50,75,100].map(p => (
+              {[25, 50, 75, 100].map(p => (
                 <button key={p} style={t.pctBtn} onClick={() => pctFill(p)}>{p}%</button>
               ))}
             </div>
@@ -257,18 +330,26 @@ const Trade: React.FC = () => {
               <span style={t.totalVal}>${total} USDT</span>
             </div>
 
-            <button style={{ ...t.submitBtn, background: side === 'buy' ? '#00FF88' : '#FF4444', color: side === 'buy' ? '#050A0E' : '#fff' }}>
+            <button style={{
+              ...t.submitBtn,
+              background: side === 'buy' ? '#00FF88' : '#FF4444',
+              color: side === 'buy' ? '#050A0E' : '#fff',
+            }}>
               {side === 'buy' ? `Buy ${selectedPair.sym}` : `Sell ${selectedPair.sym}`}
             </button>
           </div>
         </div>
       </div>
 
+      {/* Bottom panel */}
       <div style={t.bottomCard}>
         <div style={t.bottomTabs}>
-          {(['orders','history','positions'] as BottomTab[]).map(bt => (
-            <button key={bt} style={{ ...t.btTab, ...(bottomTab === bt ? t.btTabActive : {}) }}
-              onClick={() => setBottomTab(bt)}>
+          {(['orders', 'history', 'positions'] as BottomTab[]).map(bt => (
+            <button
+              key={bt}
+              style={{ ...t.btTab, ...(bottomTab === bt ? t.btTabActive : {}) }}
+              onClick={() => setBottomTab(bt)}
+            >
               {bt.charAt(0).toUpperCase() + bt.slice(1)}
             </button>
           ))}
@@ -281,19 +362,48 @@ const Trade: React.FC = () => {
       </div>
 
       <style>{`
+        /* Markets toggle button — hidden on desktop, shown on tablet/mobile */
+        .markets-toggle { display: none; }
+        .mobile-markets { display: none; }
+
+        /* ── Desktop: 3-column ── */
         .trade-layout {
           display: grid;
           grid-template-columns: 200px 1fr 280px;
           gap: 14px;
         }
 
+        /* ── Tablet (≤1200px): hide left sidebar, 2-column ── */
         @media (max-width: 1200px) {
           .trade-layout {
             grid-template-columns: 1fr 280px;
           }
-          .trade-left { display: none; } /* Hide markets on tablet to prioritize chart */
+          .trade-left { display: none; }
+          .markets-toggle {
+            display: inline-flex !important;
+            align-items: center;
+            font-family: 'Jost', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            color: #00FF88;
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            white-space: nowrap;
+          }
+          .mobile-markets {
+            display: block !important;
+            background: #111827;
+            border: 1px solid #1A2332;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 12px;
+          }
         }
 
+        /* ── Mobile (≤900px): single column, order book + form side-by-side ── */
         @media (max-width: 900px) {
           .trade-layout {
             grid-template-columns: 1fr;
@@ -305,12 +415,12 @@ const Trade: React.FC = () => {
           }
         }
 
+        /* ── Small mobile (≤600px): everything single column ── */
         @media (max-width: 600px) {
           .trade-right-sidebar {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr !important;
           }
           .chart-vol-hide { display: none; }
-          .chart-price { font-size: 16px !important; }
         }
       `}</style>
     </div>
@@ -325,50 +435,65 @@ const t: Record<string, React.CSSProperties> = {
   rightCol:   { display: 'flex', flexDirection: 'column', gap: '14px' },
   colCard:    { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '14px', padding: '16px', overflow: 'hidden' },
   colTitle:   { fontSize: '13px', fontWeight: 700, color: '#E2E8F0', marginBottom: '12px' },
+
   pairSearchWrap:  { display: 'flex', alignItems: 'center', gap: '6px', background: '#111827', border: '1px solid #1A2332', borderRadius: '8px', padding: '7px 10px', marginBottom: '10px' },
-  pairSearchIcon:  { color: '#3A5A6A', fontSize: '14px' },
+  pairSearchIcon:  { color: '#3A5A6A', fontSize: '14px', flexShrink: 0 },
   pairSearchInput: { background: 'none', border: 'none', outline: 'none', color: '#E2E8F0', fontSize: '12px', width: '100%' },
   pairList:        { display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '420px', overflowY: 'auto' },
-  pairItem: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '8px', cursor: 'pointer' },
-  pairItemSel: { background: 'rgba(0,255,136,0.07)' },
-  pairDot:   { width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0 },
-  pairSym:   { fontSize: '11px', fontWeight: 700, color: '#E2E8F0' },
-  pairPrice: { fontSize: '10px', color: '#3A5A6A' },
-  chartHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' },
-  chartDot:    { width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0 },
-  chartPair:   { fontSize: '15px', fontWeight: 700, color: '#E2E8F0' },
-  chartName:   { fontSize: '11px', color: '#3A5A6A' },
-  chartPrice:  { fontSize: '18px', fontWeight: 700, color: '#E2E8F0' },
-  tfRow:       { display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '10px' },
-  tfBtn: { fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600, color: '#3A5A6A', background: 'transparent', border: '1px solid transparent', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer' },
-  tfBtnActive: { color: '#00FF88', background: 'rgba(0,255,136,0.08)', borderColor: 'rgba(0,255,136,0.2)' },
-  chartArea:   { overflow: 'hidden', width: '100%' },
-  sideToggle:  { display: 'grid', gridTemplateColumns: '1fr 1fr', borderRadius: '10px', overflow: 'hidden', border: '1px solid #1A2332', marginBottom: '12px' },
-  sideBtn: { fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 700, background: '#111827', border: 'none', padding: '9px', cursor: 'pointer', color: '#3A5A6A' },
-  sideBtnBuy:  { background: 'rgba(0,255,136,0.12)', color: '#00FF88' },
-  sideBtnSell: { background: 'rgba(255,68,68,0.12)', color: '#FF4444' },
+  pairItem:        { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '8px', cursor: 'pointer' },
+  pairItemSel:     { background: 'rgba(0,255,136,0.07)' },
+  pairDot:         { width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0 },
+  pairSym:         { fontSize: '11px', fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  pairPrice:       { fontSize: '10px', color: '#3A5A6A' },
+
+  chartHeader:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', gap: '8px' },
+  chartDot:     { width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0 },
+  chartPair:    { fontSize: '15px', fontWeight: 700, color: '#E2E8F0' },
+  chartName:    { fontSize: '11px', color: '#3A5A6A' },
+  chartPrice:   { fontSize: '18px', fontWeight: 700, color: '#E2E8F0' },
+
+  mobileMarkets: {},
+
+  tfRow:        { display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' },
+  tfBtn:        { fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600, color: '#3A5A6A', background: 'transparent', border: '1px solid transparent', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer' },
+  tfBtnActive:  { color: '#00FF88', background: 'rgba(0,255,136,0.08)', borderColor: 'rgba(0,255,136,0.2)' },
+  chartArea:    { overflow: 'hidden', width: '100%' },
+
+  marketsToggle: {},
+
+  sideToggle:   { display: 'grid', gridTemplateColumns: '1fr 1fr', borderRadius: '10px', overflow: 'hidden', border: '1px solid #1A2332', marginBottom: '12px' },
+  sideBtn:      { fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 700, background: '#111827', border: 'none', padding: '9px', cursor: 'pointer', color: '#3A5A6A' },
+  sideBtnBuy:   { background: 'rgba(0,255,136,0.12)', color: '#00FF88' },
+  sideBtnSell:  { background: 'rgba(255,68,68,0.12)', color: '#FF4444' },
+
   orderTypeRow: { display: 'flex', gap: '6px', marginBottom: '14px' },
-  otBtn: { fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600, color: '#3A5A6A', background: 'transparent', border: '1px solid #1A2332', borderRadius: '8px', padding: '5px 14px', cursor: 'pointer' },
-  otBtnActive: { color: '#E2E8F0', borderColor: '#3A5A6A', background: 'rgba(255,255,255,0.04)' },
-  inputGroup: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' },
-  inputLabel: { fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2A4A5A' },
-  inputWrap:  { display: 'flex', alignItems: 'center', background: '#111827', border: '1px solid #1A2332', borderRadius: '8px', overflow: 'hidden' },
-  input: { background: 'none', border: 'none', outline: 'none', color: '#E2E8F0', fontSize: '13px', padding: '10px 12px', flex: 1, minWidth: 0 },
-  inputSuffix: { fontSize: '11px', color: '#3A5A6A', padding: '0 12px', flexShrink: 0 },
-  pctRow:    { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '14px' },
-  pctBtn: { fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600, color: '#5A7A8A', background: '#111827', border: '1px solid #1A2332', borderRadius: '6px', padding: '6px', cursor: 'pointer' },
-  totalRow:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #1A2332', marginBottom: '12px' },
-  totalLabel:{ fontSize: '11px', color: '#3A5A6A', letterSpacing: '0.08em', textTransform: 'uppercase' },
-  totalVal:  { fontSize: '14px', fontWeight: 700, color: '#E2E8F0' },
-  submitBtn: { fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '10px', padding: '12px', cursor: 'pointer', width: '100%' },
-  bottomCard: { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '14px', overflow: 'hidden' },
-  bottomTabs: { display: 'flex', borderBottom: '1px solid #1A2332' },
-  btTab: { fontFamily: "'Jost',sans-serif", fontSize: '12px', fontWeight: 600, color: '#3A5A6A', background: 'none', border: 'none', padding: '12px 20px', cursor: 'pointer', borderBottom: '2px solid transparent', marginBottom: '-1px' },
-  btTabActive: { color: '#00FF88', borderBottomColor: '#00FF88' },
-  bottomEmpty: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '8px' },
-  emptyIcon:   { fontSize: '32px', opacity: 0.3 },
-  emptyText:   { fontSize: '14px', fontWeight: 600, color: '#3A5A6A' },
-  emptySub:    { fontSize: '12px', color: '#1A3A4A', textAlign: 'center' },
+  otBtn:        { fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600, color: '#3A5A6A', background: 'transparent', border: '1px solid #1A2332', borderRadius: '8px', padding: '5px 14px', cursor: 'pointer' },
+  otBtnActive:  { color: '#E2E8F0', borderColor: '#3A5A6A', background: 'rgba(255,255,255,0.04)' },
+
+  inputGroup:   { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' },
+  inputLabel:   { fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2A4A5A' },
+  inputWrap:    { display: 'flex', alignItems: 'center', background: '#111827', border: '1px solid #1A2332', borderRadius: '8px', overflow: 'hidden' },
+  input:        { background: 'none', border: 'none', outline: 'none', color: '#E2E8F0', fontSize: '13px', padding: '10px 12px', flex: 1, minWidth: 0 },
+  inputSuffix:  { fontSize: '11px', color: '#3A5A6A', padding: '0 12px', flexShrink: 0 },
+
+  pctRow:       { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginBottom: '14px' },
+  pctBtn:       { fontFamily: "'Jost',sans-serif", fontSize: '11px', fontWeight: 600, color: '#5A7A8A', background: '#111827', border: '1px solid #1A2332', borderRadius: '6px', padding: '6px', cursor: 'pointer' },
+
+  totalRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #1A2332', marginBottom: '12px' },
+  totalLabel:   { fontSize: '11px', color: '#3A5A6A', letterSpacing: '0.08em', textTransform: 'uppercase' },
+  totalVal:     { fontSize: '14px', fontWeight: 700, color: '#E2E8F0' },
+
+  submitBtn:    { fontFamily: "'Jost',sans-serif", fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '10px', padding: '12px', cursor: 'pointer', width: '100%' },
+
+  bottomCard:   { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '14px', overflow: 'hidden' },
+  bottomTabs:   { display: 'flex', borderBottom: '1px solid #1A2332' },
+  btTab:        { fontFamily: "'Jost',sans-serif", fontSize: '12px', fontWeight: 600, color: '#3A5A6A', background: 'none', border: 'none', padding: '12px 20px', cursor: 'pointer', borderBottom: '2px solid transparent', marginBottom: '-1px' },
+  btTabActive:  { color: '#00FF88', borderBottomColor: '#00FF88' },
+
+  bottomEmpty:  { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '8px' },
+  emptyIcon:    { fontSize: '32px', opacity: 0.3 },
+  emptyText:    { fontSize: '14px', fontWeight: 600, color: '#3A5A6A' },
+  emptySub:     { fontSize: '12px', color: '#1A3A4A', textAlign: 'center' },
 };
 
 export default Trade;

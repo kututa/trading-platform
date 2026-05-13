@@ -32,11 +32,11 @@ const StatCard: React.FC<{ label: string; value: string; sub?: string; up?: bool
 }) => (
   <div style={c.statCard}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-            <div style={c.statLabel}>{label}</div>
-            <div style={c.statValue}>{value}</div>
-        </div>
-        <div style={c.statIcon}>{icon}</div>
+      <div>
+        <div style={c.statLabel}>{label}</div>
+        <div style={c.statValue}>{value}</div>
+      </div>
+      <div style={c.statIcon}>{icon}</div>
     </div>
     {sub && (
       <div style={{ ...c.statSub, color: up ? '#00FF88' : '#FF4444', marginTop: '8px' }}>{sub}</div>
@@ -77,11 +77,11 @@ const AssetRow: React.FC<{ asset: (typeof ASSETS)[0]; rank: number }> = ({ asset
     <div style={c.listRow}>
       <span style={c.listRank}>{rank}</span>
       <div style={{ ...c.listDot, background: asset.color }} />
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={c.listSym}>{asset.sym}</div>
         <div style={c.listName}>{asset.name}</div>
       </div>
-      <div style={{ textAlign: 'right' as const }}>
+      <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
         <div style={c.listPrice}>{fmt.price(asset.price)}</div>
         <div style={{ ...c.listPct, color: up ? '#00FF88' : '#FF4444' }}>{fmt.pct(asset.change24h)}</div>
       </div>
@@ -106,8 +106,8 @@ const DashboardOverview: React.FC<Props> = ({ onNavigate }) => {
     <div style={c.page}>
 
       {/* Welcome banner */}
-      <div style={c.welcome}>
-        <div style={{ flex: '1 1 300px' }}>
+      <div className="welcome-banner" style={c.welcome}>
+        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
           <div style={c.welcomeGreet}>Welcome back,</div>
           <div style={c.welcomeName}>{user.name} 👋</div>
           <div style={c.welcomeSub}>Your portfolio is up 4.2% this week.</div>
@@ -120,22 +120,22 @@ const DashboardOverview: React.FC<Props> = ({ onNavigate }) => {
 
       {/* Stats row */}
       <div className="stats-grid" style={c.statsGrid}>
-        <StatCard label="Balance"   value={`$${user.balance.toLocaleString()}`} sub="Stable" up={true}  icon="◈" />
-        <StatCard label="24h Volume"      value="$38.4B"  sub="+5.2%" up={true}  icon="⇅" />
-        <StatCard label="Profit"      value="+$412.00"     sub="Monthly"        up={true}  icon="📈" />
-        <StatCard label="Active"       value="12"    sub="Positions"       up={true} icon="⦿" />
+        <StatCard label="Balance"    value={`$${user.balance.toLocaleString()}`} sub="Stable"     up={true} icon="◈" />
+        <StatCard label="24h Volume" value="$38.4B"   sub="+5.2%"    up={true} icon="⇅" />
+        <StatCard label="Profit"     value="+$412.00" sub="Monthly"  up={true} icon="📈" />
+        <StatCard label="Active"     value="12"        sub="Positions" up={true} icon="⦿" />
       </div>
 
       {/* Trending assets */}
       <div>
         <div style={c.sectionHeader}>
-            <div style={c.sectionTitle}>Trending Assets</div>
-            <button style={c.seeAll} onClick={() => handleNavigate('markets')}>See all →</button>
+          <div style={c.sectionTitle}>Trending Assets</div>
+          <button style={c.seeAll} onClick={() => handleNavigate('markets')}>See all →</button>
         </div>
         <div className="trending-grid" style={c.trendingGrid}>
-            {ASSETS.slice(0, 3).map(a => (
+          {ASSETS.slice(0, 3).map(a => (
             <AssetCard key={a.id} asset={a} onTrade={() => handleNavigate('trade')} />
-            ))}
+          ))}
         </div>
       </div>
 
@@ -160,20 +160,52 @@ const DashboardOverview: React.FC<Props> = ({ onNavigate }) => {
 
       <style>{`
         .trade-btn-hover:hover {
-            background: #00FF88 !important;
-            color: #050A0E !important;
+          background: #00FF88 !important;
+          color: #050A0E !important;
         }
+
+        /* Welcome banner */
+        @media (max-width: 600px) {
+          .welcome-banner {
+            padding: 20px !important;
+            gap: 16px !important;
+          }
+        }
+
+        /* Welcome actions — full width + equal buttons on mobile */
+        @media (max-width: 640px) {
+          .welcome-actions {
+            width: 100%;
+          }
+          .welcome-actions button {
+            flex: 1;
+          }
+        }
+
+        /* Stats: 4 → 2 → 1 column */
         @media (max-width: 1024px) {
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
-        @media (max-width: 768px) {
-          .trending-grid { grid-template-columns: 1fr !important; }
-          .gl-grid { grid-template-columns: 1fr !important; }
-          .welcome-actions { width: 100%; }
-          .welcome-actions button { flex: 1; }
-        }
         @media (max-width: 480px) {
           .stats-grid { grid-template-columns: 1fr !important; }
+        }
+
+        /* Trending: 3 → 2 → 1 column */
+        @media (max-width: 900px) {
+          .trending-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 560px) {
+          .trending-grid { grid-template-columns: 1fr !important; }
+        }
+
+        /* Gainers/Losers: 2 → 1 column */
+        @media (max-width: 768px) {
+          .gl-grid { grid-template-columns: 1fr !important; }
+        }
+
+        /* Welcome name size on small screens */
+        @media (max-width: 400px) {
+          .welcome-name { font-size: 24px !important; }
         }
       `}</style>
     </div>
@@ -195,59 +227,63 @@ const c: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
     gap: '24px',
   },
-  welcomeGreet: { fontSize: '14px', color: '#00FF88', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '8px' },
+  welcomeGreet: { fontSize: '13px', color: '#00FF88', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '8px' },
   welcomeName:  { fontSize: '32px', fontWeight: 800, color: '#FFFFFF', marginBottom: '8px' },
   welcomeSub:   { fontSize: '14px', color: '#5A7A8A' },
-  welcomeActions: { display: 'flex', gap: '12px' },
+  welcomeActions: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
+
   btnGreen: {
-    fontFamily: "'Jost',sans-serif",
+    fontFamily: "'Jost', sans-serif",
     fontSize: '14px', fontWeight: 700,
     color: '#050A0E', background: '#00FF88',
     border: 'none', borderRadius: '12px',
     padding: '12px 24px', cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   btnOutline: {
-    fontFamily: "'Jost',sans-serif",
+    fontFamily: "'Jost', sans-serif",
     fontSize: '14px', fontWeight: 600,
     color: '#E2E8F0', background: 'rgba(255,255,255,0.05)',
     border: '1px solid #1A2332', borderRadius: '12px',
     padding: '12px 24px', cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
 
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px' },
-  statCard: { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '20px' },
-  statIcon:  { fontSize: '20px', color: '#00FF88', background: 'rgba(0,255,136,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' },
+  statCard:  { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '20px' },
+  statIcon:  { fontSize: '20px', color: '#00FF88', background: 'rgba(0,255,136,0.1)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', flexShrink: 0 },
   statLabel: { fontSize: '11px', color: '#5A7A8A', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' },
-  statValue: { fontSize: '24px', fontWeight: 800, color: '#FFFFFF' },
+  statValue: { fontSize: '22px', fontWeight: 800, color: '#FFFFFF' },
   statSub:   { fontSize: '12px', fontWeight: 600 },
 
   sectionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' },
   sectionTitle:  { fontSize: '18px', fontWeight: 700, color: '#FFFFFF' },
-  seeAll: { fontFamily: "'Jost',sans-serif", fontSize: '13px', color: '#00FF88', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 },
+  seeAll: { fontFamily: "'Jost', sans-serif", fontSize: '13px', color: '#00FF88', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 },
 
-  trendingGrid: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px' },
-  assetCard: { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  assetCardTop: { display: 'flex', alignItems: 'center', gap: '12px' },
-  assetDot: { width: '32px', height: '32px', borderRadius: '50%' },
-  assetSym:  { fontSize: '14px', fontWeight: 700, color: '#FFFFFF' },
-  assetName: { fontSize: '11px', color: '#5A7A8A' },
-  badge: { marginLeft: 'auto', fontSize: '11px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px' },
+  trendingGrid:   { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' },
+  assetCard:      { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  assetCardTop:   { display: 'flex', alignItems: 'center', gap: '12px' },
+  assetDot:       { width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0 },
+  assetSym:       { fontSize: '14px', fontWeight: 700, color: '#FFFFFF' },
+  assetName:      { fontSize: '11px', color: '#5A7A8A' },
+  badge:          { marginLeft: 'auto', fontSize: '11px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px', whiteSpace: 'nowrap' },
   assetCardChart: { height: '44px', width: '100%' },
-  assetCardBottom: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  assetPrice: { fontSize: '16px', fontWeight: 700, color: '#FFFFFF' },
-  tradeBtn: { fontFamily: "'Jost',sans-serif", fontSize: '12px', fontWeight: 700, color: '#00FF88', background: 'transparent', border: '1px solid rgba(0,255,136,0.3)', borderRadius: '8px', padding: '6px 16px', cursor: 'pointer', transition: 'all 0.2s' },
+  assetCardBottom:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  assetPrice:     { fontSize: '16px', fontWeight: 700, color: '#FFFFFF' },
+  tradeBtn:       { fontFamily: "'Jost', sans-serif", fontSize: '12px', fontWeight: 700, color: '#00FF88', background: 'transparent', border: '1px solid rgba(0,255,136,0.3)', borderRadius: '8px', padding: '6px 16px', cursor: 'pointer', transition: 'all 0.2s' },
 
-  glGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
-  glCard: { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '24px' },
+  glGrid:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+  glCard:   { background: '#0D1117', border: '1px solid #1A2332', borderRadius: '16px', padding: '24px' },
   glHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' },
-  glTitle: { fontSize: '15px', fontWeight: 700, color: '#FFFFFF' },
-  listRow: { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '1px solid #1A2332' },
-  listRank:  { fontSize: '11px', color: '#3A5A6A', width: '14px' },
-  listDot:   { width: '28px', height: '28px', borderRadius: '50%' },
-  listSym:   { fontSize: '13px', fontWeight: 700, color: '#FFFFFF' },
-  listName:   { fontSize: '10px', color: '#5A7A8A' },
-  listPrice: { fontSize: '13px', fontWeight: 700, color: '#FFFFFF' },
-  listPct:   { fontSize: '11px', fontWeight: 700 },
+  glTitle:  { fontSize: '15px', fontWeight: 700, color: '#FFFFFF' },
+
+  listRow:  { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '1px solid #1A2332' },
+  listRank: { fontSize: '11px', color: '#3A5A6A', width: '14px', flexShrink: 0 },
+  listDot:  { width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 },
+  listSym:  { fontSize: '13px', fontWeight: 700, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  listName: { fontSize: '10px', color: '#5A7A8A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  listPrice:{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' },
+  listPct:  { fontSize: '11px', fontWeight: 700 },
 };
 
 export default DashboardOverview;
